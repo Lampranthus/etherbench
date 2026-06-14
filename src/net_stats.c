@@ -1,4 +1,4 @@
-#include "../include/net_stats.h"
+#include "net_stats.h"
 
 #include <stdio.h>
 #include <stdlib.h>

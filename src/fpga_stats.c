@@ -1,4 +1,4 @@
-#include "../include/fpga_stats.h"
+#include "fpga_stats.h"
 
 #include <stdio.h>
 #include <stdlib.h>

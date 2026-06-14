@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -Iinclude
 
-SRC = src/main.c src/iface_stats.c src/net_stats.c src/fpga_stats.c
+SRC = src/main.c src/iface_stats.c src/net_stats.c src/fpga_stats.c src/fpga_mdio.c
 OUT = etherbench
 
 all:

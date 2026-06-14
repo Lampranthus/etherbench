@@ -1,4 +1,4 @@
-#include "../include/iface_stats.h"
+#include "iface_stats.h"
 
 #include <stdio.h>
 #include <stdlib.h>
