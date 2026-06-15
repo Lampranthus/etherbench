@@ -20,4 +20,38 @@
 #define ETHERBENCH_NET_LOG_FILE           "net_log.csv"
 #define ETHERBENCH_FPGA_LOG_FILE          "fpga_log.csv"
 
+/*
+ * KSZ9031 1GbE default MDIO configuration sequence.
+ *
+ * This is used to configure the PHY through the FPGA MDIO block.
+ */
+#define ETHERBENCH_KSZ9031_1GBE_OPS_INIT { \
+    "w:0x0D:0x0002", \
+    "w:0x0E:0x0000", \
+    "w:0x0D:0x4002", \
+    "w:0x0E:0x0008", \
+    \
+    "w:0x0D:0x0002", \
+    "w:0x0E:0x0004", \
+    "w:0x0D:0x4002", \
+    "w:0x0E:0x00FC", \
+    \
+    "w:0x0D:0x0002", \
+    "w:0x0E:0x0005", \
+    "w:0x0D:0x4002", \
+    "w:0x0E:0x7FFF", \
+    \
+    "w:0x0D:0x0002", \
+    "w:0x0E:0x0006", \
+    "w:0x0D:0x4002", \
+    "w:0x0E:0xCCCC", \
+    \
+    "w:0x0D:0x0002", \
+    "w:0x0E:0x0008", \
+    "w:0x0D:0x4002", \
+    "w:0x0E:0x004C" \
+}
+
+#define ETHERBENCH_KSZ9031_1GBE_OPS_COUNT 20
+
 #endif

@@ -3,6 +3,8 @@
 #include "net_stats.h"
 #include "fpga_stats.h"
 #include "fpga_mdio.h"
+#include "fpga_config.h"
+#include "fpga_setup.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -25,6 +27,8 @@ static void print_usage(const char *program_name)
     printf("  %s mdio-read <fpga_ip> <phy> <reg>\n", program_name);
     printf("  %s mdio-write <fpga_ip> <phy> <reg> <value>\n", program_name);
     printf("  %s mdio-seq <fpga_ip> <phy> <op1> <op2> ...\n", program_name);
+    printf("  %s fpga-arp <iface> <fpga_ip> [fpga_port]\n", program_name);
+    printf("  %s fpga-setup-1gbe <iface> <fpga_ip> <phy> [fpga_port]\n", program_name);
     printf("  %s all eth0\n", program_name);
 }
 
@@ -263,6 +267,75 @@ int main(int argc, char **argv)
                 phy,
                 argc - 4,
                 &argv[4]
+            ) != 0) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    if (strcmp(argv[1], "fpga-arp") == 0) {
+        const char *iface_name;
+        const char *fpga_ip;
+
+        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
+
+        if (argc < 4) {
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        iface_name = argv[2];
+        fpga_ip = argv[3];
+
+        if (argc >= 5) {
+            fpga_port = atoi(argv[4]);
+        }
+
+        if (fpga_arp_setup(
+                iface_name,
+                fpga_ip,
+                fpga_port,
+                timeout_ms
+            ) != 0) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    if (strcmp(argv[1], "fpga-setup-1gbe") == 0) {
+        const char *iface_name;
+        const char *fpga_ip;
+        uint8_t phy_addr;
+
+        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int rx_port = ETHERBENCH_DEFAULT_RX_PORT;
+        int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
+        int mdio_delay_us = ETHERBENCH_DEFAULT_MDIO_DELAY_US;
+
+        if (argc < 5) {
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        iface_name = argv[2];
+        fpga_ip = argv[3];
+        phy_addr = (uint8_t)strtoul(argv[4], NULL, 0);
+
+        if (argc >= 6) {
+            fpga_port = atoi(argv[5]);
+        }
+
+        if (fpga_setup_ksz9031_1gbe(
+                iface_name,
+                fpga_ip,
+                phy_addr,
+                fpga_port,
+                rx_port,
+                timeout_ms,
+                mdio_delay_us
             ) != 0) {
             return 1;
         }
