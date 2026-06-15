@@ -7,7 +7,8 @@ SRC = 	src/main.c \
 		src/fpga_stats.c \
 		src/fpga_mdio.c \
 		src/fpga_config.c \
-		src/fpga_setup.c
+		src/fpga_setup.c \
+		src/fpga_ctrl.c
 OUT = etherbench
 
 all:

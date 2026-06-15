@@ -5,10 +5,12 @@
 #include "fpga_mdio.h"
 #include "fpga_config.h"
 #include "fpga_setup.h"
+#include "fpga_ctrl.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 static void print_usage(const char *program_name)
 {
@@ -16,6 +18,13 @@ static void print_usage(const char *program_name)
     printf("  %s iface <interface_name>\n", program_name);
     printf("  %s net\n", program_name);
     printf("  %s fpga <fpga_ip> [fpga_port] [rx_port]\n", program_name);
+    printf("  %s mdio-read <fpga_ip> <phy> <reg>\n", program_name);
+    printf("  %s mdio-write <fpga_ip> <phy> <reg> <value>\n", program_name);
+    printf("  %s mdio-seq <fpga_ip> <phy> <op1> <op2> ...\n", program_name);
+    printf("  %s fpga-arp <iface> <fpga_ip> [fpga_port]\n", program_name);
+    printf("  %s fpga-setup-1gbe <iface> <fpga_ip> <phy> [fpga_port]\n", program_name);
+    printf("  %s fpga-net <fpga_ip> <field> <value> [fpga_port]\n", program_name);
+    printf("  %s fpga-test <fpga_ip> <command> [value] [fpga_port]\n", program_name);
     printf("  %s all <interface_name>\n", program_name);
     printf("\n");
     printf("Examples:\n");
@@ -24,11 +33,12 @@ static void print_usage(const char *program_name)
     printf("  %s net\n", program_name);
     printf("  %s fpga 192.168.1.12\n", program_name);
     printf("  %s fpga 192.168.1.12 55555 9999\n", program_name);
-    printf("  %s mdio-read <fpga_ip> <phy> <reg>\n", program_name);
-    printf("  %s mdio-write <fpga_ip> <phy> <reg> <value>\n", program_name);
-    printf("  %s mdio-seq <fpga_ip> <phy> <op1> <op2> ...\n", program_name);
-    printf("  %s fpga-arp <iface> <fpga_ip> [fpga_port]\n", program_name);
-    printf("  %s fpga-setup-1gbe <iface> <fpga_ip> <phy> [fpga_port]\n", program_name);
+    printf("  %s fpga-net 192.168.1.12 source-ip 192.168.1.12\n", program_name);
+    printf("  %s fpga-net 192.168.1.12 dest-ip 192.168.1.100\n", program_name);
+    printf("  %s fpga-net 192.168.1.12 src-port 1234\n", program_name);
+    printf("  %s fpga-test 192.168.1.12 loopback\n", program_name);
+    printf("  %s fpga-test 192.168.1.12 mtu 1440\n", program_name);
+    printf("  %s fpga-test 192.168.1.12 pktn 1000\n", program_name);
     printf("  %s all eth0\n", program_name);
 }
 
@@ -340,6 +350,131 @@ int main(int argc, char **argv)
             return 1;
         }
 
+        return 0;
+    }
+
+    if (strcmp(argv[1], "fpga-net") == 0) {
+        const char *fpga_ip;
+        const char *field;
+        const char *value;
+
+        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int ret = -1;
+
+        if (argc < 5) {
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        fpga_ip = argv[2];
+        field = argv[3];
+        value = argv[4];
+
+        if (argc >= 6) {
+            fpga_port = atoi(argv[5]);
+        }
+
+        if (strcmp(field, "gateway") == 0) {
+            ret = fpga_ctrl_set_gateway_ip(fpga_ip, fpga_port, value);
+        } else if (strcmp(field, "source-ip") == 0 || strcmp(field, "local-ip") == 0) {
+            ret = fpga_ctrl_set_source_ip(fpga_ip, fpga_port, value);
+        } else if (strcmp(field, "dest-ip") == 0) {
+            ret = fpga_ctrl_set_dest_ip(fpga_ip, fpga_port, value);
+        } else if (strcmp(field, "subnet") == 0) {
+            ret = fpga_ctrl_set_subnet_mask(fpga_ip, fpga_port, value);
+        } else if (strcmp(field, "src-port") == 0) {
+            ret = fpga_ctrl_set_src_port(
+                fpga_ip,
+                fpga_port,
+                (uint16_t)strtoul(value, NULL, 0)
+            );
+        } else if (strcmp(field, "dst-port") == 0) {
+            ret = fpga_ctrl_set_dst_port(
+                fpga_ip,
+                fpga_port,
+                (uint16_t)strtoul(value, NULL, 0)
+            );
+        } else {
+            fprintf(stderr, "Unknown fpga-net field: %s\n", field);
+            return 1;
+        }
+
+        if (ret != 0) {
+            return 1;
+        }
+
+        printf("FPGA network command sent\n");
+        return 0;
+    }
+
+    if (strcmp(argv[1], "fpga-test") == 0) {
+        const char *fpga_ip;
+        const char *cmd;
+
+        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int ret = -1;
+
+        if (argc < 4) {
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        fpga_ip = argv[2];
+        cmd = argv[3];
+
+        /*
+        * For commands with value:
+        *   ./etherbench fpga-test <ip> mtu 1440 [fpga_port]
+        *   ./etherbench fpga-test <ip> pktn 1000 [fpga_port]
+        *
+        * For commands without value:
+        *   ./etherbench fpga-test <ip> loopback [fpga_port]
+        */
+        if (strcmp(cmd, "mtu") == 0 || strcmp(cmd, "pktn") == 0) {
+            if (argc < 5) {
+                fprintf(stderr, "Command %s requires a value\n", cmd);
+                return 1;
+            }
+
+            if (argc >= 6) {
+                fpga_port = atoi(argv[5]);
+            }
+        } else {
+            if (argc >= 5) {
+                fpga_port = atoi(argv[4]);
+            }
+        }
+
+        if (strcmp(cmd, "loopback") == 0) {
+            ret = fpga_ctrl_enable_loopback(fpga_ip, fpga_port);
+        } else if (strcmp(cmd, "trigger") == 0) {
+            ret = fpga_ctrl_send_trigger(fpga_ip, fpga_port);
+        } else if (strcmp(cmd, "random") == 0) {
+            ret = fpga_ctrl_enable_random(fpga_ip, fpga_port);
+        } else if (strcmp(cmd, "flood") == 0) {
+            ret = fpga_ctrl_enable_flood(fpga_ip, fpga_port);
+        } else if (strcmp(cmd, "mtu") == 0) {
+            ret = fpga_ctrl_set_udp_mtu(
+                fpga_ip,
+                fpga_port,
+                (uint16_t)strtoul(argv[4], NULL, 0)
+            );
+        } else if (strcmp(cmd, "pktn") == 0) {
+            ret = fpga_ctrl_set_packet_count(
+                fpga_ip,
+                fpga_port,
+                (uint32_t)strtoul(argv[4], NULL, 0)
+            );
+        } else {
+            fprintf(stderr, "Unknown fpga-test command: %s\n", cmd);
+            return 1;
+        }
+
+        if (ret != 0) {
+            return 1;
+        }
+
+        printf("FPGA test command sent\n");
         return 0;
     }
 
