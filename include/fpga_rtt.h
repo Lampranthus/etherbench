@@ -16,7 +16,8 @@ typedef struct {
 
 int fpga_rtt_test(
     const char *fpga_ip,
-    int fpga_port,
+    int fpga_ctrl_port,
+    int fpga_loopback_port,
     int local_port,
     int timeout_ms,
     int packet_count,
@@ -27,7 +28,8 @@ int fpga_rtt_test(
 int append_fpga_rtt_csv(
     const char *filename,
     const char *fpga_ip,
-    int fpga_port,
+    int fpga_ctrl_port,
+    int fpga_loopback_port,
     int local_port,
     int payload_size,
     const fpga_rtt_result_t *result

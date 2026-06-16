@@ -26,7 +26,7 @@ static void print_usage(const char *program_name)
     printf("  %s fpga-setup <iface> <fpga_ip> <phy> [fpga_port]\n", program_name);
     printf("  %s fpga-net <fpga_ip> <field> <value> [fpga_port]\n", program_name);
     printf("  %s fpga-test <fpga_ip> <command> [value] [fpga_port]\n", program_name);
-    printf("  %s fpga-rtt <fpga_ip> <packets> <payload_size> [fpga_port] [local_port]\n", program_name);
+    printf("  %s fpga-rtt <fpga_ip> <packets> <payload_size> [loopback_port] [local_port] [fpga_ctrl_port]\n", program_name);
     printf("  %s all <interface_name>\n", program_name);
     printf("\n");
     printf("Examples:\n");
@@ -42,7 +42,7 @@ static void print_usage(const char *program_name)
     printf("  %s fpga-test 192.168.1.12 mtu 1440\n", program_name);
     printf("  %s fpga-test 192.168.1.12 pktn 1000\n", program_name);
     printf("  %s fpga-rtt 192.168.1.12 1000 64\n", program_name);
-    printf("  %s fpga-rtt 192.168.1.12 1000 1024 55555 9999\n", program_name);
+    printf("  %s fpga-rtt 192.168.1.12 1000 64 1234 9999 55555\n", program_name);
     printf("  %s all eth0\n", program_name);
 }
 
@@ -193,7 +193,7 @@ int main(int argc, char **argv)
         uint8_t phy;
         uint8_t reg;
 
-        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
         int rx_port = ETHERBENCH_DEFAULT_RX_PORT;
         int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
         int delay_us = ETHERBENCH_DEFAULT_MDIO_DELAY_US;
@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 
         if (fpga_mdio_read(
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
                 rx_port,
                 timeout_ms,
                 delay_us,
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
         uint8_t reg;
         uint16_t value;
 
-        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
         int delay_us = ETHERBENCH_DEFAULT_MDIO_DELAY_US;
 
         if (argc < 6) {
@@ -244,7 +244,7 @@ int main(int argc, char **argv)
 
         if (fpga_mdio_write(
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
                 delay_us,
                 phy,
                 reg,
@@ -260,7 +260,7 @@ int main(int argc, char **argv)
         const char *fpga_ip;
         uint8_t phy;
 
-        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
         int rx_port = ETHERBENCH_DEFAULT_RX_PORT;
         int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
         int delay_us = ETHERBENCH_DEFAULT_MDIO_DELAY_US;
@@ -274,7 +274,7 @@ int main(int argc, char **argv)
 
         if (fpga_mdio_run_sequence(
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
                 rx_port,
                 timeout_ms,
                 delay_us,
@@ -292,7 +292,7 @@ int main(int argc, char **argv)
         const char *iface_name;
         const char *fpga_ip;
 
-        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
         int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
 
         if (argc < 4) {
@@ -304,13 +304,13 @@ int main(int argc, char **argv)
         fpga_ip = argv[3];
 
         if (argc >= 5) {
-            fpga_port = atoi(argv[4]);
+            fpga_ctrl_port = atoi(argv[4]);
         }
 
         if (fpga_arp_setup(
                 iface_name,
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
                 timeout_ms
             ) != 0) {
             return 1;
@@ -324,7 +324,7 @@ int main(int argc, char **argv)
         const char *fpga_ip;
         uint8_t phy_addr;
 
-        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
         int rx_port = ETHERBENCH_DEFAULT_RX_PORT;
         int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
         int mdio_delay_us = ETHERBENCH_DEFAULT_MDIO_DELAY_US;
@@ -339,14 +339,14 @@ int main(int argc, char **argv)
         phy_addr = (uint8_t)strtoul(argv[4], NULL, 0);
 
         if (argc >= 6) {
-            fpga_port = atoi(argv[5]);
+            fpga_ctrl_port = atoi(argv[5]);
         }
 
         if (fpga_setup_ksz9031_1gbe(
                 iface_name,
                 fpga_ip,
                 phy_addr,
-                fpga_port,
+                fpga_ctrl_port,
                 rx_port,
                 timeout_ms,
                 mdio_delay_us
@@ -362,7 +362,7 @@ int main(int argc, char **argv)
         const char *field;
         const char *value;
 
-        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
         int ret = -1;
 
         if (argc < 5) {
@@ -375,27 +375,27 @@ int main(int argc, char **argv)
         value = argv[4];
 
         if (argc >= 6) {
-            fpga_port = atoi(argv[5]);
+            fpga_ctrl_port = atoi(argv[5]);
         }
 
         if (strcmp(field, "gateway") == 0) {
-            ret = fpga_ctrl_set_gateway_ip(fpga_ip, fpga_port, value);
+            ret = fpga_ctrl_set_gateway_ip(fpga_ip, fpga_ctrl_port, value);
         } else if (strcmp(field, "source-ip") == 0 || strcmp(field, "local-ip") == 0) {
-            ret = fpga_ctrl_set_source_ip(fpga_ip, fpga_port, value);
+            ret = fpga_ctrl_set_source_ip(fpga_ip, fpga_ctrl_port, value);
         } else if (strcmp(field, "dest-ip") == 0) {
-            ret = fpga_ctrl_set_dest_ip(fpga_ip, fpga_port, value);
+            ret = fpga_ctrl_set_dest_ip(fpga_ip, fpga_ctrl_port, value);
         } else if (strcmp(field, "subnet") == 0) {
-            ret = fpga_ctrl_set_subnet_mask(fpga_ip, fpga_port, value);
+            ret = fpga_ctrl_set_subnet_mask(fpga_ip, fpga_ctrl_port, value);
         } else if (strcmp(field, "src-port") == 0) {
             ret = fpga_ctrl_set_src_port(
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
                 (uint16_t)strtoul(value, NULL, 0)
             );
         } else if (strcmp(field, "dst-port") == 0) {
             ret = fpga_ctrl_set_dst_port(
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
                 (uint16_t)strtoul(value, NULL, 0)
             );
         } else {
@@ -415,7 +415,7 @@ int main(int argc, char **argv)
         const char *fpga_ip;
         const char *cmd;
 
-        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
         int ret = -1;
 
         if (argc < 4) {
@@ -441,32 +441,32 @@ int main(int argc, char **argv)
             }
 
             if (argc >= 6) {
-                fpga_port = atoi(argv[5]);
+                fpga_ctrl_port = atoi(argv[5]);
             }
         } else {
             if (argc >= 5) {
-                fpga_port = atoi(argv[4]);
+                fpga_ctrl_port = atoi(argv[4]);
             }
         }
 
         if (strcmp(cmd, "loopback") == 0) {
-            ret = fpga_ctrl_enable_loopback(fpga_ip, fpga_port);
+            ret = fpga_ctrl_enable_loopback(fpga_ip, fpga_ctrl_port);
         } else if (strcmp(cmd, "trigger") == 0) {
-            ret = fpga_ctrl_send_trigger(fpga_ip, fpga_port);
+            ret = fpga_ctrl_send_trigger(fpga_ip, fpga_ctrl_port);
         } else if (strcmp(cmd, "random") == 0) {
-            ret = fpga_ctrl_enable_random(fpga_ip, fpga_port);
+            ret = fpga_ctrl_enable_random(fpga_ip, fpga_ctrl_port);
         } else if (strcmp(cmd, "flood") == 0) {
-            ret = fpga_ctrl_enable_flood(fpga_ip, fpga_port);
+            ret = fpga_ctrl_enable_flood(fpga_ip, fpga_ctrl_port);
         } else if (strcmp(cmd, "mtu") == 0) {
             ret = fpga_ctrl_set_udp_mtu(
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
                 (uint16_t)strtoul(argv[4], NULL, 0)
             );
         } else if (strcmp(cmd, "pktn") == 0) {
             ret = fpga_ctrl_set_packet_count(
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
                 (uint32_t)strtoul(argv[4], NULL, 0)
             );
         } else {
@@ -487,7 +487,8 @@ int main(int argc, char **argv)
         int packet_count;
         int payload_size;
 
-        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
+        int fpga_data_port = ETHERBENCH_DEFAULT_FPGA_LOOPBACK_PORT;
         int local_port = ETHERBENCH_DEFAULT_RX_PORT;
         int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
 
@@ -503,16 +504,21 @@ int main(int argc, char **argv)
         payload_size = atoi(argv[4]);
 
         if (argc >= 6) {
-            fpga_port = atoi(argv[5]);
+            fpga_data_port = atoi(argv[5]);
         }
 
         if (argc >= 7) {
             local_port = atoi(argv[6]);
         }
 
+        if (argc >= 8) {
+            fpga_ctrl_port = atoi(argv[7]);
+        }
+
         if (fpga_rtt_test(
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
+                fpga_data_port,
                 local_port,
                 timeout_ms,
                 packet_count,
@@ -537,7 +543,8 @@ int main(int argc, char **argv)
         if (append_fpga_rtt_csv(
                 ETHERBENCH_FPGA_RTT_LOG_FILE,
                 fpga_ip,
-                fpga_port,
+                fpga_ctrl_port,
+                fpga_data_port,
                 local_port,
                 payload_size,
                 &result

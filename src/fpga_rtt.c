@@ -144,7 +144,7 @@ static int verify_rtt_payload(
 
 static int ensure_fpga_loopback(
     const char *fpga_ip,
-    int fpga_port,
+    int fpga_ctrl_port,
     int local_port,
     int timeout_ms
 )
@@ -155,7 +155,7 @@ static int ensure_fpga_loopback(
 
     if (query_fpga_stats(
             fpga_ip,
-            fpga_port,
+            fpga_ctrl_port,
             local_port,
             timeout_ms,
             &stats
@@ -171,7 +171,7 @@ static int ensure_fpga_loopback(
 
     printf("FPGA loopback is disabled. Enabling loopback...\n");
 
-    if (fpga_ctrl_enable_loopback(fpga_ip, fpga_port) != 0) {
+    if (fpga_ctrl_enable_loopback(fpga_ip, fpga_ctrl_port) != 0) {
         fprintf(stderr, "Could not send loopback command\n");
         return -1;
     }
@@ -180,7 +180,7 @@ static int ensure_fpga_loopback(
 
     if (query_fpga_stats(
             fpga_ip,
-            fpga_port,
+            fpga_ctrl_port,
             local_port,
             timeout_ms,
             &stats
@@ -195,6 +195,63 @@ static int ensure_fpga_loopback(
     }
 
     printf("FPGA loopback enabled\n");
+
+    return 0;
+}
+
+static int disable_fpga_loopback(
+    const char *fpga_ip,
+    int fpga_ctrl_port,
+    int local_port,
+    int timeout_ms
+)
+{
+    fpga_stats_t stats;
+
+    printf("Checking FPGA loopback mode...\n");
+
+    if (query_fpga_stats(
+            fpga_ip,
+            fpga_ctrl_port,
+            local_port,
+            timeout_ms,
+            &stats
+        ) != 0) {
+        fprintf(stderr, "Could not query FPGA regstats\n");
+        return -1;
+    }
+
+    if (!stats.mode.loopback) {
+        printf("FPGA loopback is already disabled\n");
+        return 0;
+    }
+
+    printf("FPGA loopback is enabled. Disabling loopback...\n");
+
+    if (fpga_ctrl_enable_loopback(fpga_ip, fpga_ctrl_port) != 0) {
+        fprintf(stderr, "Could not send loopback command\n"); 
+        return -1;
+    }
+
+    usleep(RTT_LOOPBACK_WAIT_US);
+
+    if (query_fpga_stats(
+            fpga_ip,
+            fpga_ctrl_port,
+            local_port,
+            timeout_ms,
+            &stats
+        ) != 0) {
+        fprintf(stderr, "Could not query FPGA regstats after loopback command\n");
+        return -1;
+    }
+
+    if (stats.mode.loopback) {
+        fprintf(stderr, "FPGA loopback did not disable\n");
+        return -1;
+    }
+
+    printf("FPGA loopback disabled\n");
 
     return 0;
 }
@@ -340,7 +397,8 @@ static void compute_stats(
 
 int fpga_rtt_test(
     const char *fpga_ip,
-    int fpga_port,
+    int fpga_ctrl_port,
+    int fpga_loopback_port,
     int local_port,
     int timeout_ms,
     int packet_count,
@@ -377,7 +435,7 @@ int fpga_rtt_test(
 
     if (ensure_fpga_loopback(
             fpga_ip,
-            fpga_port,
+            fpga_ctrl_port,
             local_port,
             timeout_ms
         ) != 0) {
@@ -390,7 +448,7 @@ int fpga_rtt_test(
         return -1;
     }
 
-    if (build_dest_addr(fpga_ip, fpga_port, &dest_addr) != 0) {
+    if (build_dest_addr(fpga_ip, fpga_loopback_port, &dest_addr) != 0) {
         close(sock);
         return -1;
     }
@@ -413,9 +471,11 @@ int fpga_rtt_test(
         return -1;
     }
 
-    printf("Starting RTT test: packets=%d payload=%d bytes\n",
-           packet_count,
-           payload_size);
+    printf("Starting RTT test: packets=%d payload=%d bytes loopback_port=%d local_port=%d\n",
+            packet_count,
+            payload_size,
+            fpga_loopback_port,
+            local_port);
 
     for (i = 0; i < packet_count; i++) {
         double rtt_ms = 0.0;
@@ -445,6 +505,15 @@ int fpga_rtt_test(
     }
 
     close(sock);
+
+    if (disable_fpga_loopback(
+            fpga_ip,
+            fpga_ctrl_port,
+            local_port,
+            timeout_ms
+        ) != 0) {
+        return -1;
+    }  
 
     result->sent = packet_count;
     result->received = received;
@@ -476,7 +545,8 @@ static int file_exists(const char *filename)
 int append_fpga_rtt_csv(
     const char *filename,
     const char *fpga_ip,
-    int fpga_port,
+    int fpga_ctrl_port,
+    int fpga_data_port,
     int local_port,
     int payload_size,
     const fpga_rtt_result_t *result
@@ -502,7 +572,7 @@ int append_fpga_rtt_csv(
     if (write_header) {
         fprintf(
             file,
-            "timestamp,fpga_ip,fpga_port,local_port,"
+            "timestamp,fpga_ip,fpga_ctrl_port,fpga_data_port,local_port,"
             "payload_size,sent,received,lost,"
             "min_ms,avg_ms,max_ms,stddev_ms\n"
         );
@@ -512,10 +582,11 @@ int append_fpga_rtt_csv(
 
     fprintf(
         file,
-        "%ld,%s,%d,%d,%d,%d,%d,%d,%.9f,%.9f,%.9f,%.9f\n",
+        "%ld,%s,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f,%.9f,%.9f\n",
         now,
         fpga_ip,
-        fpga_port,
+        fpga_ctrl_port,
+        fpga_data_port,
         local_port,
         payload_size,
         result->sent,
