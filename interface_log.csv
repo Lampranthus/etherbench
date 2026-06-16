@@ -1,2 +1,0 @@
-timestamp,interface,mac,state,speed_mbps,duplex,rx_bytes,rx_packets,rx_errors,rx_dropped,tx_bytes,tx_packets,tx_errors,tx_dropped
-1781630563,eth0,c8:a3:62:c9:95:7b,up,1000,unknown,28163,143,0,0,15839,47,0,0
