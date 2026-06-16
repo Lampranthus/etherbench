@@ -6,6 +6,7 @@
 #include "fpga_config.h"
 #include "fpga_setup.h"
 #include "fpga_ctrl.h"
+#include "fpga_rtt.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -22,9 +23,10 @@ static void print_usage(const char *program_name)
     printf("  %s mdio-write <fpga_ip> <phy> <reg> <value>\n", program_name);
     printf("  %s mdio-seq <fpga_ip> <phy> <op1> <op2> ...\n", program_name);
     printf("  %s fpga-arp <iface> <fpga_ip> [fpga_port]\n", program_name);
-    printf("  %s fpga-setup-1gbe <iface> <fpga_ip> <phy> [fpga_port]\n", program_name);
+    printf("  %s fpga-setup <iface> <fpga_ip> <phy> [fpga_port]\n", program_name);
     printf("  %s fpga-net <fpga_ip> <field> <value> [fpga_port]\n", program_name);
     printf("  %s fpga-test <fpga_ip> <command> [value] [fpga_port]\n", program_name);
+    printf("  %s fpga-rtt <fpga_ip> <packets> <payload_size> [fpga_port] [local_port]\n", program_name);
     printf("  %s all <interface_name>\n", program_name);
     printf("\n");
     printf("Examples:\n");
@@ -39,6 +41,8 @@ static void print_usage(const char *program_name)
     printf("  %s fpga-test 192.168.1.12 loopback\n", program_name);
     printf("  %s fpga-test 192.168.1.12 mtu 1440\n", program_name);
     printf("  %s fpga-test 192.168.1.12 pktn 1000\n", program_name);
+    printf("  %s fpga-rtt 192.168.1.12 1000 64\n", program_name);
+    printf("  %s fpga-rtt 192.168.1.12 1000 1024 55555 9999\n", program_name);
     printf("  %s all eth0\n", program_name);
 }
 
@@ -315,7 +319,7 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    if (strcmp(argv[1], "fpga-setup-1gbe") == 0) {
+    if (strcmp(argv[1], "fpga-setup") == 0) {
         const char *iface_name;
         const char *fpga_ip;
         uint8_t phy_addr;
@@ -475,6 +479,75 @@ int main(int argc, char **argv)
         }
 
         printf("FPGA test command sent\n");
+        return 0;
+    }
+
+    if (strcmp(argv[1], "fpga-rtt") == 0) {
+        const char *fpga_ip;
+        int packet_count;
+        int payload_size;
+
+        int fpga_port = ETHERBENCH_DEFAULT_FPGA_PORT;
+        int local_port = ETHERBENCH_DEFAULT_RX_PORT;
+        int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
+
+        fpga_rtt_result_t result;
+
+        if (argc < 5) {
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        fpga_ip = argv[2];
+        packet_count = atoi(argv[3]);
+        payload_size = atoi(argv[4]);
+
+        if (argc >= 6) {
+            fpga_port = atoi(argv[5]);
+        }
+
+        if (argc >= 7) {
+            local_port = atoi(argv[6]);
+        }
+
+        if (fpga_rtt_test(
+                fpga_ip,
+                fpga_port,
+                local_port,
+                timeout_ms,
+                packet_count,
+                payload_size,
+                &result
+            ) != 0) {
+            return 1;
+        }
+
+        printf("\n=== RTT result ===\n");
+        printf("Sent:      %d\n", result.sent);
+        printf("Received:  %d\n", result.received);
+        printf("Lost:      %d\n", result.lost);
+
+        if (result.received > 0) {
+            printf("Min:       %.6f ms\n", result.min_ms);
+            printf("Avg:       %.6f ms\n", result.avg_ms);
+            printf("Max:       %.6f ms\n", result.max_ms);
+            printf("Stddev:    %.6f ms\n", result.stddev_ms);
+        }
+
+        if (append_fpga_rtt_csv(
+                ETHERBENCH_FPGA_RTT_LOG_FILE,
+                fpga_ip,
+                fpga_port,
+                local_port,
+                payload_size,
+                &result
+            ) != 0) {
+            fprintf(stderr, "Error: could not write RTT log\n");
+            return 1;
+        }
+
+        printf("Saved to: %s\n", ETHERBENCH_FPGA_RTT_LOG_FILE);
+
         return 0;
     }
 

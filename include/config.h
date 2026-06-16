@@ -19,6 +19,7 @@
 #define ETHERBENCH_IFACE_LOG_FILE         "interface_log.csv"
 #define ETHERBENCH_NET_LOG_FILE           "net_log.csv"
 #define ETHERBENCH_FPGA_LOG_FILE          "fpga_log.csv"
+#define ETHERBENCH_FPGA_RTT_LOG_FILE      "fpga_rtt_logs.csv"
 
 /*
  * KSZ9031 1GbE default MDIO configuration sequence.
