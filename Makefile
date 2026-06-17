@@ -10,7 +10,9 @@ SRC = 	src/main.c \
 		src/fpga_config.c \
 		src/fpga_setup.c \
 		src/fpga_ctrl.c \
-		src/fpga_rtt.c
+		src/fpga_rtt.c \
+		src/fpga_loopback_mode.c \
+		src/fpga_loopback_load.c
 OUT = etherbench
 
 all:
@@ -24,3 +26,4 @@ clear-logs:
 	rm -f net_log.csv
 	rm -f fpga_log.csv
 	rm -f fpga_rtt_logs.csv
+	rm -f fpga_loopback_load_logs.csv

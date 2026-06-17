@@ -3,6 +3,7 @@
 #include "fpga_rtt.h"
 #include "fpga_stats.h"
 #include "fpga_ctrl.h"
+#include "fpga_loopback_mode.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -138,120 +139,6 @@ static int verify_rtt_payload(
     if (memcmp(tx_payload, rx_payload, (size_t)payload_size) != 0) {
         return -1;
     }
-
-    return 0;
-}
-
-static int ensure_fpga_loopback(
-    const char *fpga_ip,
-    int fpga_ctrl_port,
-    int local_port,
-    int timeout_ms
-)
-{
-    fpga_stats_t stats;
-
-    printf("Checking FPGA loopback mode...\n");
-
-    if (query_fpga_stats(
-            fpga_ip,
-            fpga_ctrl_port,
-            local_port,
-            timeout_ms,
-            &stats
-        ) != 0) {
-        fprintf(stderr, "Could not query FPGA regstats\n");
-        return -1;
-    }
-
-    if (stats.mode.loopback) {
-        printf("FPGA loopback is already enabled\n");
-        return 0;
-    }
-
-    printf("FPGA loopback is disabled. Enabling loopback...\n");
-
-    if (fpga_ctrl_enable_loopback(fpga_ip, fpga_ctrl_port) != 0) {
-        fprintf(stderr, "Could not send loopback command\n");
-        return -1;
-    }
-
-    usleep(RTT_LOOPBACK_WAIT_US);
-
-    if (query_fpga_stats(
-            fpga_ip,
-            fpga_ctrl_port,
-            local_port,
-            timeout_ms,
-            &stats
-        ) != 0) {
-        fprintf(stderr, "Could not query FPGA regstats after loopback command\n");
-        return -1;
-    }
-
-    if (!stats.mode.loopback) {
-        fprintf(stderr, "FPGA loopback did not enable\n");
-        return -1;
-    }
-
-    printf("FPGA loopback enabled\n");
-
-    return 0;
-}
-
-static int disable_fpga_loopback(
-    const char *fpga_ip,
-    int fpga_ctrl_port,
-    int local_port,
-    int timeout_ms
-)
-{
-    fpga_stats_t stats;
-
-    printf("Checking FPGA loopback mode...\n");
-
-    if (query_fpga_stats(
-            fpga_ip,
-            fpga_ctrl_port,
-            local_port,
-            timeout_ms,
-            &stats
-        ) != 0) {
-        fprintf(stderr, "Could not query FPGA regstats\n");
-        return -1;
-    }
-
-    if (!stats.mode.loopback) {
-        printf("FPGA loopback is already disabled\n");
-        return 0;
-    }
-
-    printf("FPGA loopback is enabled. Disabling loopback...\n");
-
-    if (fpga_ctrl_enable_loopback(fpga_ip, fpga_ctrl_port) != 0) {
-        fprintf(stderr, "Could not send loopback command\n"); 
-        return -1;
-    }
-
-    usleep(RTT_LOOPBACK_WAIT_US);
-
-    if (query_fpga_stats(
-            fpga_ip,
-            fpga_ctrl_port,
-            local_port,
-            timeout_ms,
-            &stats
-        ) != 0) {
-        fprintf(stderr, "Could not query FPGA regstats after loopback command\n");
-        return -1;
-    }
-
-    if (stats.mode.loopback) {
-        fprintf(stderr, "FPGA loopback did not disable\n");
-        return -1;
-    }
-
-    printf("FPGA loopback disabled\n");
 
     return 0;
 }
@@ -433,7 +320,7 @@ int fpga_rtt_test(
 
     memset(result, 0, sizeof(*result));
 
-    if (ensure_fpga_loopback(
+    if (fpga_enable_loopback_if_needed(
             fpga_ip,
             fpga_ctrl_port,
             local_port,
@@ -506,14 +393,14 @@ int fpga_rtt_test(
 
     close(sock);
 
-    if (disable_fpga_loopback(
+    if (fpga_disable_loopback_if_needed(
             fpga_ip,
             fpga_ctrl_port,
             local_port,
             timeout_ms
         ) != 0) {
         return -1;
-    }  
+    }
 
     result->sent = packet_count;
     result->received = received;
