@@ -133,7 +133,7 @@ static int parse_fpga_status_frame(
     stats->eth.rx_error_bad_fcs = read_be32(data, 21);
     stats->eth.rx_fifo_overflow = read_be32(data, 25);
     stats->eth.rx_fifo_bad_frame = read_be32(data, 29);
-    stats->eth.rx_fifo_good_frame = read_be40(data, 33);
+    stats->eth.rx_fifo_good_frame = read_be40(data, 33) - 1; /* Subtract 1 to exclude the current status frame itself */
 
     stats->eth.eth_rx_error_header_early_termination = read_be32(data, 38);
 

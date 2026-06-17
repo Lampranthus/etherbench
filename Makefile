@@ -27,3 +27,4 @@ clear-logs:
 	rm -f fpga_log.csv
 	rm -f fpga_rtt_logs.csv
 	rm -f fpga_loopback_load_logs.csv
+	rm -f fpga_loopback_loss_logs.csv

@@ -31,7 +31,7 @@ static void print_usage(const char *program_name)
     printf("  %s fpga-net <fpga_ip> <field> <value> [fpga_port]\n", program_name);
     printf("  %s fpga-test <fpga_ip> <command> [value] [fpga_port]\n", program_name);
     printf("  %s fpga-rtt <fpga_ip> <packets> <payload_size> [loopback_port] [local_port] [fpga_ctrl_port]\n", program_name);
-    printf("  %s fpga-loopback-test-full <iface> <fpga_ip> <packets> <payload_size> [data_port] [local_port] [ctrl_port]\n", program_name);
+    printf("  %s fpga-loopback-test <iface> <fpga_ip> <packets> <payload_size> [data_port] [local_port] [ctrl_port]\n", program_name);
     printf("  %s all <interface_name>\n", program_name);
     printf("\n");
     printf("Examples:\n");
@@ -332,12 +332,12 @@ static int append_loopback_loss_csv(
     );
 
     fpga_rx_good_delta = delta_u64(
-    fpga_after->eth.rx_fifo_good_frame,
+    fpga_after->eth.rx_fifo_good_frame - 1, /* Subtract 1 to exclude the current status frame itself */
     fpga_before->eth.rx_fifo_good_frame
     );
 
     fpga_tx_good_delta = delta_u64(
-    fpga_after->eth.tx_fifo_good_frame,
+    fpga_after->eth.tx_fifo_good_frame - 1, /* Subtract 1 to exclude the current status frame itself */
     fpga_before->eth.tx_fifo_good_frame
     );
 
@@ -1186,21 +1186,6 @@ int main(int argc, char **argv)
         } 
 
         printf("\n========================================\n");
-        printf(" BEFORE TEST: HOST STATS\n");
-        printf("========================================\n");       
-
-        if (log_host_stats_snapshot(
-                iface_name,
-                iface_log_file,
-                net_log_file,
-                &iface_before,
-                &net_before
-            ) != 0) {
-            fprintf(stderr, "Error: could not log initial host stats\n");
-            return 1;
-        }
-
-        printf("\n========================================\n");
         printf(" BEFORE TEST: FPGA STATS\n");
         printf("========================================\n");
 
@@ -1213,6 +1198,21 @@ int main(int argc, char **argv)
                 &fpga_before
             ) != 0) {
             fprintf(stderr, "Error: could not log initial FPGA stats\n");
+            return 1;
+        }
+
+        printf("\n========================================\n");
+        printf(" BEFORE TEST: HOST STATS\n");
+        printf("========================================\n");       
+
+        if (log_host_stats_snapshot(
+                iface_name,
+                iface_log_file,
+                net_log_file,
+                &iface_before,
+                &net_before
+            ) != 0) {
+            fprintf(stderr, "Error: could not log initial host stats\n");
             return 1;
         }
 
