@@ -9,12 +9,14 @@
 #include "fpga_rtt.h"
 #include "fpga_loopback_load.h"
 #include "fpga_loopback_mode.h"
+#include "fpga_tx_test.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <unistd.h>
 #include <time.h>
 
 static void print_usage(const char *program_name)
@@ -32,6 +34,7 @@ static void print_usage(const char *program_name)
     printf("  %s fpga-test <fpga_ip> <command> [value] [fpga_port]\n", program_name);
     printf("  %s fpga-rtt <fpga_ip> <packets> <payload_size> [loopback_port] [local_port] [fpga_ctrl_port]\n", program_name);
     printf("  %s fpga-loopback-test <iface> <fpga_ip> <packets> <payload_size> [data_port] [local_port] [ctrl_port]\n", program_name);
+    printf("  %s fpga-tx-test <iface> <fpga_ip> <packets> <payload_size> <mode> [ctrl_port] [local_port]\n", program_name);
     printf("  %s all <interface_name>\n", program_name);
     printf("\n");
     printf("Examples:\n");
@@ -44,7 +47,6 @@ static void print_usage(const char *program_name)
     printf("  %s fpga-net 192.168.1.12 dest-ip 192.168.1.10\n", program_name);
     printf("  %s fpga-net 192.168.1.12 src-port 1234\n", program_name);
     printf("  %s fpga-test 192.168.1.12 loopback\n", program_name);
-    printf("  %s fpga-test 192.168.1.12 mtu 1440\n", program_name);
     printf("  %s fpga-test 192.168.1.12 pktn 1000\n", program_name);
     printf("  %s fpga-rtt 192.168.1.12 1000 64\n", program_name);
     printf("  %s fpga-rtt 192.168.1.12 1000 64 1234 9999 55555\n", program_name);
@@ -1325,6 +1327,235 @@ int main(int argc, char **argv)
         printf("Saved to: %s\n", ETHERBENCH_FPGA_LOOPBACK_LOSS_LOG_FILE);
 
         printf("\nFull loopback load test completed\n");
+
+        return 0;
+    }
+
+        if (strcmp(argv[1], "fpga-tx-test") == 0) {
+        const char *iface_name;
+        const char *fpga_ip;
+        const char *mode;
+
+        int packet_count;
+        int payload_size;
+
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
+        int local_port = ETHERBENCH_DEFAULT_RX_PORT;
+        int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
+
+        const char *iface_log_file = ETHERBENCH_IFACE_LOG_FILE;
+        const char *net_log_file = ETHERBENCH_NET_LOG_FILE;
+        const char *fpga_log_file = ETHERBENCH_FPGA_LOG_FILE;
+
+        iface_stats_t iface_before;
+        iface_stats_t iface_after;
+        net_stats_t net_before;
+        net_stats_t net_after;
+        fpga_stats_t fpga_before;
+        fpga_stats_t fpga_after;
+
+        fpga_tx_test_result_t result;
+
+        if (argc < 7) {
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        iface_name = argv[2];
+        fpga_ip = argv[3];
+        packet_count = atoi(argv[4]);
+        payload_size = atoi(argv[5]);
+        mode = argv[6];
+
+        if (argc >= 8) {
+            fpga_ctrl_port = atoi(argv[7]);
+        }
+
+        if (argc >= 9) {
+            local_port = atoi(argv[8]);
+        }
+
+        printf("\n========================================\n");
+        printf(" FPGA TX FULL TEST\n");
+        printf("========================================\n");
+        printf("Interface:        %s\n", iface_name);
+        printf("FPGA IP:          %s\n", fpga_ip);
+        printf("Control port:     %d\n", fpga_ctrl_port);
+        printf("Local RX port:    %d\n", local_port);
+        printf("Packets:          %d\n", packet_count);
+        printf("Payload size:     %d bytes\n", payload_size);
+        printf("Mode:             %s\n", mode);
+
+        /*
+        * Make sure loopback is disabled before FPGA TX test.
+        */
+        if (fpga_disable_loopback_if_needed(
+                fpga_ip,
+                fpga_ctrl_port,
+                local_port,
+                timeout_ms
+            ) != 0) {
+            return -1;
+        }
+
+        /*
+        * Configure packet count, payload size and content mode.
+        */
+        if (fpga_ctrl_set_packet_count(
+                fpga_ip,
+                fpga_ctrl_port,
+                (uint32_t)packet_count
+            ) != 0) {
+            return -1;
+        }
+
+        usleep(100000);
+
+        if (fpga_ctrl_set_udp_mtu(
+                fpga_ip,
+                fpga_ctrl_port,
+                (uint16_t)payload_size
+            ) != 0) {
+            return -1;
+        }
+
+        usleep(100000);
+
+        if (fpga_ctrl_set_content_mode(
+                fpga_ip,
+                fpga_ctrl_port,
+                mode
+            ) != 0) {
+            return -1;
+        }
+
+        usleep(100000);
+
+        if (verify_fpga_tx_config(
+                fpga_ip,
+                fpga_ctrl_port,
+                local_port,
+                timeout_ms,
+                packet_count,
+                payload_size,
+                mode
+            ) != 0) {
+            return -1;
+        }
+
+        printf("\n========================================\n");
+        printf(" BEFORE TEST: FPGA STATS\n");
+        printf("========================================\n");
+
+        if (log_fpga_stats_snapshot(
+                fpga_ip,
+                fpga_ctrl_port,
+                local_port,
+                timeout_ms,
+                fpga_log_file,
+                &fpga_before
+            ) != 0) {
+            return 1;
+        }
+
+        printf("\n========================================\n");
+        printf(" BEFORE TEST: HOST STATS\n");
+        printf("========================================\n");
+
+        if (log_host_stats_snapshot(
+                iface_name,
+                iface_log_file,
+                net_log_file,
+                &iface_before,
+                &net_before
+            ) != 0) {
+            return 1;
+        }
+
+        printf("\n========================================\n");
+        printf(" RUNNING FPGA TX TEST\n");
+        printf("========================================\n");
+
+        if (fpga_tx_test_run(
+                fpga_ip,
+                fpga_ctrl_port,
+                local_port,
+                packet_count,
+                payload_size,
+                mode,
+                &result
+            ) != 0) {
+            fprintf(stderr, "Error: FPGA TX test failed\n");
+            return 1;
+        }
+
+        usleep(100000);
+
+        printf("\n========================================\n");
+        printf(" AFTER TEST: HOST STATS\n");
+        printf("========================================\n");
+
+        if (log_host_stats_snapshot(
+                iface_name,
+                iface_log_file,
+                net_log_file,
+                &iface_after,
+                &net_after
+            ) != 0) {
+            return 1;
+        }
+
+        printf("\n========================================\n");
+        printf(" AFTER TEST: FPGA STATS\n");
+        printf("========================================\n");
+
+        if (log_fpga_stats_snapshot(
+                fpga_ip,
+                fpga_ctrl_port,
+                local_port,
+                timeout_ms,
+                fpga_log_file,
+                &fpga_after
+            ) != 0) {
+            return 1;
+        }
+
+        usleep(100000);
+
+        if (fpga_ctrl_set_content_mode(
+                fpga_ip,
+                fpga_ctrl_port,
+                mode
+            ) != 0) {
+            return -1;
+        }
+
+        printf("\n========================================\n");
+        printf(" FPGA TX TEST RESULT\n");
+        printf("========================================\n");
+        printf("Requested packets:      %d\n", result.requested_packets);
+        printf("Payload size:           %d bytes\n", result.payload_size);
+        printf("Mode:                   %s\n", result.mode);
+        printf("Received packets:       %d\n", result.received_packets);
+        printf("Lost packets:           %d\n", result.lost_packets);
+        printf("Elapsed RX:             %.9f s\n", result.elapsed_s);
+        printf("Trigger to last RX:     %.9f s\n", result.trigger_to_last_s);
+        printf("Payload goodput:        %.6f Mbps\n", result.payload_goodput_mbps);
+        printf("Estimated wire rate:    %.6f Mbps\n", result.estimated_wire_mbps);
+
+        if (append_fpga_tx_test_csv(
+                ETHERBENCH_FPGA_TX_TEST_LOG_FILE,
+                iface_name,
+                fpga_ip,
+                fpga_ctrl_port,
+                local_port,
+                &result
+            ) != 0) {
+            fprintf(stderr, "Error: could not write FPGA TX test CSV\n");
+            return 1;
+        }
+
+        printf("\nSaved to: %s\n", ETHERBENCH_FPGA_TX_TEST_LOG_FILE);
 
         return 0;
     }

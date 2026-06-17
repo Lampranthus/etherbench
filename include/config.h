@@ -23,6 +23,13 @@
 #define ETHERBENCH_FPGA_RTT_LOG_FILE      "fpga_rtt_logs.csv"
 #define ETHERBENCH_FPGA_LOOPBACK_LOAD_LOG_FILE "fpga_loopback_load_logs.csv"
 #define ETHERBENCH_FPGA_LOOPBACK_LOSS_LOG_FILE "fpga_loopback_loss_logs.csv"
+#define ETHERBENCH_FPGA_TX_TEST_LOG_FILE "fpga_tx_test_logs.csv"
+
+/*
+ * FPGA TX content mode commands.
+ */
+#define ETHERBENCH_FPGA_CMD_RANDOM       "..random"
+#define ETHERBENCH_FPGA_CMD_CONSTANT     "constant"
 
 /*
  * KSZ9031 1GbE default MDIO configuration sequence.

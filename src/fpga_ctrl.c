@@ -252,6 +252,35 @@ int fpga_ctrl_enable_random(const char *fpga_ip, int fpga_port)
     return send_simple_command(fpga_ip, fpga_port, "..random");
 }
 
+int fpga_ctrl_enable_constant(const char *fpga_ip, int fpga_port)
+{
+    return send_simple_command(fpga_ip, fpga_port, "constant");
+}
+
+int fpga_ctrl_set_content_mode(
+    const char *fpga_ip,
+    int fpga_port,
+    const char *mode
+)
+{
+    if (mode == NULL) {
+        return -1;
+    }
+
+    if (strcmp(mode, "random") == 0) {
+        return fpga_ctrl_enable_random(fpga_ip, fpga_port);
+    }
+
+    if (strcmp(mode, "constant") == 0) {
+        return fpga_ctrl_enable_constant(fpga_ip, fpga_port);
+    }
+
+    fprintf(stderr, "Unknown FPGA content mode: %s\n", mode);
+    fprintf(stderr, "Use: random, constant\n");
+
+    return -1;
+}
+
 int fpga_ctrl_enable_flood(const char *fpga_ip, int fpga_port)
 {
     return send_simple_command(fpga_ip, fpga_port, "...flood");

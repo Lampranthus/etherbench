@@ -12,7 +12,8 @@ SRC = 	src/main.c \
 		src/fpga_ctrl.c \
 		src/fpga_rtt.c \
 		src/fpga_loopback_mode.c \
-		src/fpga_loopback_load.c
+		src/fpga_loopback_load.c \
+		src/fpga_tx_test.c
 OUT = etherbench
 
 all:
@@ -28,3 +29,4 @@ clear-logs:
 	rm -f fpga_rtt_logs.csv
 	rm -f fpga_loopback_load_logs.csv
 	rm -f fpga_loopback_loss_logs.csv
+	rm -f fpga_tx_test_logs.csv
