@@ -74,3 +74,38 @@
    # example for namespace eth_ns
    ./etherbench fpga-tx-test eth0 192.168.1.12 10000000 1440 random 55555 9999
    ```
+
+7. Running payload sweeps and plots.
+   ```bash
+   scripts/etherbench_sweep.py run --iface <iface> --fpga-ip <fpga_ip>
+   ```
+   ```bash
+   # default sweep:
+   # - payloads: 256, 320, 384, ... 1408, 1440
+   # - repetitions: 3 per payload
+   # - RTT: 1000 packets
+   # - loopback: 1000000 packets
+   # - FPGA TX: 1000000 packets
+   scripts/etherbench_sweep.py run --iface eth0 --fpga-ip 192.168.1.12
+   ```
+   The script writes each run in a new `results/sweep_YYYYMMDD_HHMMSS`
+   directory, including raw etherbench CSV logs, summary CSV files and SVG plots:
+   `rtt_payload_sweep.svg`, `loopback_goodput_payload_sweep.svg`,
+   `tx_goodput_payload_sweep.svg`, `loopback_loss_payload_sweep.svg`,
+   `tx_loss_payload_sweep.svg` and `pps_payload_sweep.svg`.
+
+   To preview commands without sending packets:
+   ```bash
+   scripts/etherbench_sweep.py run --iface eth0 --fpga-ip 192.168.1.12 --dry-run
+   ```
+
+   To use a custom payload list:
+   ```bash
+   scripts/etherbench_sweep.py run --iface eth0 --fpga-ip 192.168.1.12 --payloads 256,512,1024,1440
+   ```
+
+   To rebuild summaries or plots from an existing result directory:
+   ```bash
+   scripts/etherbench_sweep.py summarize --output-dir results/sweep_YYYYMMDD_HHMMSS
+   scripts/etherbench_sweep.py plot --output-dir results/sweep_YYYYMMDD_HHMMSS
+   ```

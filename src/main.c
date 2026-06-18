@@ -10,14 +10,70 @@
 #include "fpga_loopback_load.h"
 #include "fpga_loopback_mode.h"
 #include "fpga_tx_test.h"
+#include "utils.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <unistd.h>
 #include <time.h>
+
+#define ETHERBENCH_MIN_UDP_MTU 256
+#define ETHERBENCH_MAX_UDP_MTU 1440
+
+static int parse_cli_port(const char *text, const char *name, int *value)
+{
+    return parse_int_range_arg(text, 1, 65535, name, value);
+}
+
+static int parse_cli_positive_int(const char *text, const char *name, int *value)
+{
+    return parse_int_range_arg(text, 1, INT_MAX, name, value);
+}
+
+static int parse_cli_udp_mtu(const char *text, int *value)
+{
+    return parse_int_range_arg(
+        text,
+        ETHERBENCH_MIN_UDP_MTU,
+        ETHERBENCH_MAX_UDP_MTU,
+        "udpmtu",
+        value
+    );
+}
+
+static int parse_cli_u8(const char *text, const char *name, uint8_t *value)
+{
+    if (parse_u8_arg(text, value) != 0) {
+        fprintf(stderr, "Invalid %s: %s (expected 0..255)\n", name, text);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int parse_cli_u16(const char *text, const char *name, uint16_t *value)
+{
+    if (parse_u16_arg(text, value) != 0) {
+        fprintf(stderr, "Invalid %s: %s (expected 0..65535)\n", name, text);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int parse_cli_u32(const char *text, const char *name, uint32_t *value)
+{
+    if (parse_u32_arg(text, value) != 0) {
+        fprintf(stderr, "Invalid %s: %s (expected 0..4294967295)\n", name, text);
+        return -1;
+    }
+
+    return 0;
+}
 
 static void print_usage(const char *program_name)
 {
@@ -710,12 +766,14 @@ int main(int argc, char **argv)
 
         fpga_ip = argv[2];
 
-        if (argc >= 4) {
-            fpga_port = atoi(argv[3]);
+        if (argc >= 4 &&
+            parse_cli_port(argv[3], "fpga_port", &fpga_port) != 0) {
+            return 1;
         }
 
-        if (argc >= 5) {
-            rx_port = atoi(argv[4]);
+        if (argc >= 5 &&
+            parse_cli_port(argv[4], "rx_port", &rx_port) != 0) {
+            return 1;
         }
 
         printf("Sending regstats to FPGA %s:%d\n", fpga_ip, fpga_port);
@@ -755,8 +813,10 @@ int main(int argc, char **argv)
         }
 
         fpga_ip = argv[2];
-        phy = (uint8_t)strtoul(argv[3], NULL, 0);
-        reg = (uint8_t)strtoul(argv[4], NULL, 0);
+        if (parse_cli_u8(argv[3], "phy", &phy) != 0 ||
+            parse_cli_u8(argv[4], "reg", &reg) != 0) {
+            return 1;
+        }
 
         if (fpga_mdio_read(
                 fpga_ip,
@@ -789,9 +849,11 @@ int main(int argc, char **argv)
         }
 
         fpga_ip = argv[2];
-        phy = (uint8_t)strtoul(argv[3], NULL, 0);
-        reg = (uint8_t)strtoul(argv[4], NULL, 0);
-        value = (uint16_t)strtoul(argv[5], NULL, 0);
+        if (parse_cli_u8(argv[3], "phy", &phy) != 0 ||
+            parse_cli_u8(argv[4], "reg", &reg) != 0 ||
+            parse_cli_u16(argv[5], "value", &value) != 0) {
+            return 1;
+        }
 
         if (fpga_mdio_write(
                 fpga_ip,
@@ -821,7 +883,9 @@ int main(int argc, char **argv)
         }
 
         fpga_ip = argv[2];
-        phy = (uint8_t)strtoul(argv[3], NULL, 0);
+        if (parse_cli_u8(argv[3], "phy", &phy) != 0) {
+            return 1;
+        }
 
         if (fpga_mdio_run_sequence(
                 fpga_ip,
@@ -854,8 +918,9 @@ int main(int argc, char **argv)
         iface_name = argv[2];
         fpga_ip = argv[3];
 
-        if (argc >= 5) {
-            fpga_ctrl_port = atoi(argv[4]);
+        if (argc >= 5 &&
+            parse_cli_port(argv[4], "fpga_ctrl_port", &fpga_ctrl_port) != 0) {
+            return 1;
         }
 
         if (fpga_arp_setup(
@@ -887,10 +952,13 @@ int main(int argc, char **argv)
 
         iface_name = argv[2];
         fpga_ip = argv[3];
-        phy_addr = (uint8_t)strtoul(argv[4], NULL, 0);
+        if (parse_cli_u8(argv[4], "phy", &phy_addr) != 0) {
+            return 1;
+        }
 
-        if (argc >= 6) {
-            fpga_ctrl_port = atoi(argv[5]);
+        if (argc >= 6 &&
+            parse_cli_port(argv[5], "fpga_ctrl_port", &fpga_ctrl_port) != 0) {
+            return 1;
         }
 
         if (fpga_setup_ksz9031_1gbe(
@@ -925,8 +993,9 @@ int main(int argc, char **argv)
         field = argv[3];
         value = argv[4];
 
-        if (argc >= 6) {
-            fpga_ctrl_port = atoi(argv[5]);
+        if (argc >= 6 &&
+            parse_cli_port(argv[5], "fpga_ctrl_port", &fpga_ctrl_port) != 0) {
+            return 1;
         }
 
         if (strcmp(field, "gateway") == 0) {
@@ -938,16 +1007,28 @@ int main(int argc, char **argv)
         } else if (strcmp(field, "subnet") == 0) {
             ret = fpga_ctrl_set_subnet_mask(fpga_ip, fpga_ctrl_port, value);
         } else if (strcmp(field, "src-port") == 0) {
+            int udp_port;
+
+            if (parse_cli_port(value, "src-port", &udp_port) != 0) {
+                return 1;
+            }
+
             ret = fpga_ctrl_set_src_port(
                 fpga_ip,
                 fpga_ctrl_port,
-                (uint16_t)strtoul(value, NULL, 0)
+                (uint16_t)udp_port
             );
         } else if (strcmp(field, "dst-port") == 0) {
+            int udp_port;
+
+            if (parse_cli_port(value, "dst-port", &udp_port) != 0) {
+                return 1;
+            }
+
             ret = fpga_ctrl_set_dst_port(
                 fpga_ip,
                 fpga_ctrl_port,
-                (uint16_t)strtoul(value, NULL, 0)
+                (uint16_t)udp_port
             );
         } else {
             fprintf(stderr, "Unknown fpga-net field: %s\n", field);
@@ -991,12 +1072,14 @@ int main(int argc, char **argv)
                 return 1;
             }
 
-            if (argc >= 6) {
-                fpga_ctrl_port = atoi(argv[5]);
+            if (argc >= 6 &&
+                parse_cli_port(argv[5], "fpga_ctrl_port", &fpga_ctrl_port) != 0) {
+                return 1;
             }
         } else {
-            if (argc >= 5) {
-                fpga_ctrl_port = atoi(argv[4]);
+            if (argc >= 5 &&
+                parse_cli_port(argv[4], "fpga_ctrl_port", &fpga_ctrl_port) != 0) {
+                return 1;
             }
         }
 
@@ -1009,16 +1092,28 @@ int main(int argc, char **argv)
         } else if (strcmp(cmd, "flood") == 0) {
             ret = fpga_ctrl_enable_flood(fpga_ip, fpga_ctrl_port);
         } else if (strcmp(cmd, "mtu") == 0) {
+            int mtu;
+
+            if (parse_cli_udp_mtu(argv[4], &mtu) != 0) {
+                return 1;
+            }
+
             ret = fpga_ctrl_set_udp_mtu(
                 fpga_ip,
                 fpga_ctrl_port,
-                (uint16_t)strtoul(argv[4], NULL, 0)
+                (uint16_t)mtu
             );
         } else if (strcmp(cmd, "pktn") == 0) {
+            uint32_t packets;
+
+            if (parse_cli_u32(argv[4], "pktn", &packets) != 0) {
+                return 1;
+            }
+
             ret = fpga_ctrl_set_packet_count(
                 fpga_ip,
                 fpga_ctrl_port,
-                (uint32_t)strtoul(argv[4], NULL, 0)
+                packets
             );
         } else {
             fprintf(stderr, "Unknown fpga-test command: %s\n", cmd);
@@ -1051,19 +1146,24 @@ int main(int argc, char **argv)
         }
 
         fpga_ip = argv[2];
-        packet_count = atoi(argv[3]);
-        payload_size = atoi(argv[4]);
-
-        if (argc >= 6) {
-            fpga_data_port = atoi(argv[5]);
+        if (parse_cli_positive_int(argv[3], "packets", &packet_count) != 0 ||
+            parse_cli_udp_mtu(argv[4], &payload_size) != 0) {
+            return 1;
         }
 
-        if (argc >= 7) {
-            local_port = atoi(argv[6]);
+        if (argc >= 6 &&
+            parse_cli_port(argv[5], "loopback_port", &fpga_data_port) != 0) {
+            return 1;
         }
 
-        if (argc >= 8) {
-            fpga_ctrl_port = atoi(argv[7]);
+        if (argc >= 7 &&
+            parse_cli_port(argv[6], "local_port", &local_port) != 0) {
+            return 1;
+        }
+
+        if (argc >= 8 &&
+            parse_cli_port(argv[7], "fpga_ctrl_port", &fpga_ctrl_port) != 0) {
+            return 1;
         }
 
         if (fpga_rtt_test(
@@ -1142,28 +1242,23 @@ int main(int argc, char **argv)
         iface_name = argv[2];
         fpga_ip = argv[3];
 
-        packet_count = atoi(argv[4]);
-        payload_size = atoi(argv[5]);
-
-        if (argc >= 7) {
-            fpga_data_port = atoi(argv[6]);
-        }
-
-        if (argc >= 8) {
-            local_port = atoi(argv[7]);
-        }
-
-        if (argc >= 9) {
-            fpga_ctrl_port = atoi(argv[8]);
-        }
-
-        if (packet_count <= 0) {
-            fprintf(stderr, "Error: packet count must be greater than 0\n");
+        if (parse_cli_positive_int(argv[4], "packets", &packet_count) != 0 ||
+            parse_cli_udp_mtu(argv[5], &payload_size) != 0) {
             return 1;
         }
 
-        if (payload_size <= 0) {
-            fprintf(stderr, "Error: payload size must be greater than 0\n");
+        if (argc >= 7 &&
+            parse_cli_port(argv[6], "data_port", &fpga_data_port) != 0) {
+            return 1;
+        }
+
+        if (argc >= 8 &&
+            parse_cli_port(argv[7], "local_port", &local_port) != 0) {
+            return 1;
+        }
+
+        if (argc >= 9 &&
+            parse_cli_port(argv[8], "ctrl_port", &fpga_ctrl_port) != 0) {
             return 1;
         }
 
@@ -1363,16 +1458,20 @@ int main(int argc, char **argv)
 
         iface_name = argv[2];
         fpga_ip = argv[3];
-        packet_count = atoi(argv[4]);
-        payload_size = atoi(argv[5]);
+        if (parse_cli_positive_int(argv[4], "packets", &packet_count) != 0 ||
+            parse_cli_udp_mtu(argv[5], &payload_size) != 0) {
+            return 1;
+        }
         mode = argv[6];
 
-        if (argc >= 8) {
-            fpga_ctrl_port = atoi(argv[7]);
+        if (argc >= 8 &&
+            parse_cli_port(argv[7], "ctrl_port", &fpga_ctrl_port) != 0) {
+            return 1;
         }
 
-        if (argc >= 9) {
-            local_port = atoi(argv[8]);
+        if (argc >= 9 &&
+            parse_cli_port(argv[8], "local_port", &local_port) != 0) {
+            return 1;
         }
 
         printf("\n========================================\n");

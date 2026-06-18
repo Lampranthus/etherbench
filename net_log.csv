@@ -1,5 +1,0 @@
-timestamp,ip_in_receives,ip_in_hdr_errors,ip_in_addr_errors,ip_in_unknown_protos,ip_in_discards,ip_in_delivers,ip_out_requests,ip_out_discards,ip_out_no_routes,ip_reasm_reqds,ip_reasm_oks,ip_reasm_fails,udp_in_datagrams,udp_no_ports,udp_in_errors,udp_out_datagrams,udp_rcvbuf_errors,udp_sndbuf_errors,udp_in_csum_errors,udp_ignored_multi,udp_mem_errors
-1781736584,24451894,0,0,0,0,24451894,11012764,0,0,0,0,0,7159931,6282028,11008616,11012598,11008616,0,0,0,0
-1781736704,34451894,0,0,0,0,34451894,11012765,0,0,0,0,0,17159931,6282028,11008616,11012599,11008616,0,0,0,0
-1781736954,34451898,0,0,0,0,34451898,11012773,0,0,0,0,0,17159935,6282028,11008616,11012607,11008616,0,0,0,0
-1781736980,44443250,0,0,0,0,44443250,11012774,0,0,0,0,0,26672996,6282028,11486907,11012608,11486907,0,0,0,0

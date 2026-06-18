@@ -38,12 +38,19 @@ static int make_udp_socket(int local_port, int timeout_ms)
 {
     int sock;
     struct sockaddr_in addr;
+    int reuse = 1;
     struct timeval timeout;
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (sock < 0) {
         perror("socket");
+        return -1;
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+        perror("setsockopt SO_REUSEADDR");
+        close(sock);
         return -1;
     }
 

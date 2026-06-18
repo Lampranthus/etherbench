@@ -82,7 +82,6 @@ static int make_rx_drain_socket(int local_port)
     int sock;
     struct sockaddr_in addr;
     int flags;
-    int rcvbuf = 16 * 1024 * 1024;
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -95,13 +94,6 @@ static int make_rx_drain_socket(int local_port)
      * Try to enlarge receive buffer.
      * Linux may cap this using net.core.rmem_max.
      */
-    setsockopt(
-        sock,
-        SOL_SOCKET,
-        SO_RCVBUF,
-        &rcvbuf,
-        sizeof(rcvbuf)
-    );
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -143,13 +135,9 @@ static int make_tx_socket(void)
         return -1;
     }
 
-    setsockopt(
-        sock,
-        SOL_SOCKET,
-        SO_SNDBUF,
-        &sndbuf,
-        sizeof(sndbuf)
-    );
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf)) < 0) {
+        perror("setsockopt SO_SNDBUF");
+    }
 
     return sock;
 }

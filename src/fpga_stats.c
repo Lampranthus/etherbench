@@ -203,6 +203,7 @@ static int make_rx_socket(int rx_port, int timeout_ms)
 {
     int sock;
     int rcvbuf;
+    int reuse = 1;
     struct sockaddr_in addr;
     struct timeval timeout;
 
@@ -214,7 +215,15 @@ static int make_rx_socket(int rx_port, int timeout_ms)
     }
 
     rcvbuf = 1024 * 1024;
-    setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+        perror("setsockopt SO_REUSEADDR");
+        close(sock);
+        return -1;
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0) {
+        perror("setsockopt SO_RCVBUF");
+    }
 
     timeout.tv_sec = timeout_ms / 1000;
     timeout.tv_usec = (timeout_ms % 1000) * 1000;

@@ -35,6 +35,7 @@ static int make_rx_socket(int local_port)
     int sock;
     struct sockaddr_in addr;
     int flags;
+    int reuse = 1;
     int rcvbuf = 32 * 1024 * 1024;
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -44,13 +45,15 @@ static int make_rx_socket(int local_port)
         return -1;
     }
 
-    setsockopt(
-        sock,
-        SOL_SOCKET,
-        SO_RCVBUF,
-        &rcvbuf,
-        sizeof(rcvbuf)
-    );
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+        perror("setsockopt SO_REUSEADDR");
+        close(sock);
+        return -1;
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0) {
+        perror("setsockopt SO_RCVBUF");
+    }
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
