@@ -11,6 +11,7 @@ typedef struct {
     int send_errors;
 
     int drained_packets;
+    int measured_tx_packets;
 
     double elapsed_s;
     double packets_per_second;

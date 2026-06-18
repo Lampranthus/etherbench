@@ -49,6 +49,21 @@ static uint64_t now_ns(void)
     return ((uint64_t)ts.tv_sec * 1000000000ULL) + (uint64_t)ts.tv_nsec;
 }
 
+static void wait_until_ns(uint64_t target_ns)
+{
+    while (1) {
+        uint64_t current_ns = now_ns();
+
+        if (current_ns >= target_ns) {
+            return;
+        }
+
+        if (target_ns - current_ns > SEND_PACE_SLEEP_MARGIN_NS) {
+            usleep((useconds_t)((target_ns - current_ns - SEND_PACE_SLEEP_MARGIN_NS) / 1000));
+        }
+    }
+}
+
 static uint32_t xorshift32(uint32_t *state)
 {
     uint32_t x;
@@ -274,12 +289,16 @@ static int drain_rx_socket_until_quiet(
 static int read_iface_tx_snapshot(
     const char *iface_name,
     uint64_t *tx_packets,
+    uint64_t *tx_bytes,
     int *speed_mbps
 )
 {
     iface_stats_t stats;
 
-    if (iface_name == NULL || tx_packets == NULL || speed_mbps == NULL) {
+    if (iface_name == NULL ||
+        tx_packets == NULL ||
+        tx_bytes == NULL ||
+        speed_mbps == NULL) {
         return -1;
     }
 
@@ -288,6 +307,7 @@ static int read_iface_tx_snapshot(
     }
 
     *tx_packets = stats.tx_packets;
+    *tx_bytes = stats.tx_bytes;
 
     if (stats.speed_mbps > 0) {
         *speed_mbps = stats.speed_mbps;
@@ -296,6 +316,70 @@ static int read_iface_tx_snapshot(
     }
 
     return 0;
+}
+
+static double estimate_wire_elapsed_s(
+    uint64_t packets,
+    int payload_size,
+    int speed_mbps
+)
+{
+    double bits;
+
+    if (packets == 0 || payload_size <= 0 || speed_mbps <= 0) {
+        return 0.0;
+    }
+
+    bits =
+        (double)packets *
+        (double)(payload_size + ESTIMATED_ETHERNET_OVERHEAD_BYTES) *
+        8.0;
+
+    return bits / ((double)speed_mbps * 1000000.0);
+}
+
+static uint64_t estimate_packet_interval_ns(
+    int payload_size,
+    int speed_mbps
+)
+{
+    double bits;
+    double interval_ns;
+
+    if (payload_size <= 0 || speed_mbps <= 0) {
+        return 0;
+    }
+
+    bits =
+        (double)(payload_size + ESTIMATED_ETHERNET_OVERHEAD_BYTES) *
+        8.0;
+
+    interval_ns = bits * 1000.0 / (double)speed_mbps;
+
+    if (interval_ns < 1.0) {
+        return 1;
+    }
+
+    return (uint64_t)interval_ns;
+}
+
+static int calculate_pace_burst_packets(int payload_size)
+{
+    int packet_bytes;
+    int burst_packets;
+
+    if (payload_size <= 0) {
+        return 1;
+    }
+
+    packet_bytes = payload_size + ESTIMATED_ETHERNET_OVERHEAD_BYTES;
+    burst_packets = LOOPBACK_PACE_BURST_BYTES / packet_bytes;
+
+    if (burst_packets < 1) {
+        return 1;
+    }
+
+    return burst_packets;
 }
 
 int fpga_loopback_load_test(
@@ -323,6 +407,15 @@ int fpga_loopback_load_test(
     uint64_t t0;
     uint64_t t1;
     uint64_t iface_tx_before = 0;
+    uint64_t iface_tx_after = 0;
+    uint64_t iface_tx_bytes_before = 0;
+    uint64_t iface_tx_bytes_after = 0;
+    uint64_t measured_tx_packets = 0;
+    uint64_t send_interval_ns = 0;
+    double enqueue_elapsed_s;
+    double wire_elapsed_s;
+    double effective_elapsed_s;
+    int pace_burst_packets = 1;
     int iface_speed_mbps = DEFAULT_LINK_MBPS;
 
     if (fpga_ip == NULL || result == NULL) {
@@ -383,6 +476,7 @@ int fpga_loopback_load_test(
         read_iface_tx_snapshot(
             iface_name,
             &iface_tx_before,
+            &iface_tx_bytes_before,
             &iface_speed_mbps
         ) != 0) {
         fprintf(stderr, "Warning: could not read TX counter for %s\n", iface_name);
@@ -395,10 +489,31 @@ int fpga_loopback_load_test(
     printf("  data port:    %d\n", fpga_data_port);
     printf("  local port:   %d\n", local_port);
 
+    send_interval_ns = estimate_packet_interval_ns(
+        payload_size,
+        iface_speed_mbps
+    );
+    pace_burst_packets = calculate_pace_burst_packets(payload_size);
+
+    if (send_interval_ns > 0) {
+        printf(
+            "  pacing:       %.3f us/packet at %d Mb/s, burst=%d packets\n",
+            (double)send_interval_ns / 1000.0,
+            iface_speed_mbps,
+            pace_burst_packets
+        );
+    }
+
     t0 = now_ns();
 
     for (i = 0; i < packet_count; i++) {
         ssize_t n;
+
+        if (send_interval_ns > 0 &&
+            i > 0 &&
+            (i % pace_burst_packets) == 0) {
+            wait_until_ns(t0 + ((uint64_t)i * send_interval_ns));
+        }
 
         n = send(
             tx_sock,
@@ -424,6 +539,10 @@ int fpga_loopback_load_test(
         }
     }
 
+    if (send_interval_ns > 0 && sent_packets > 0) {
+        wait_until_ns(t0 + ((uint64_t)sent_packets * send_interval_ns));
+    }
+
     t1 = now_ns();
 
     /*
@@ -442,6 +561,29 @@ int fpga_loopback_load_test(
         1000    /* max wait: 1000 ms */
     );
 
+    measured_tx_packets = (uint64_t)sent_packets;
+
+    if (iface_name != NULL &&
+        read_iface_tx_snapshot(
+            iface_name,
+            &iface_tx_after,
+            &iface_tx_bytes_after,
+            &iface_speed_mbps
+        ) == 0) {
+        if (iface_tx_after >= iface_tx_before) {
+            measured_tx_packets = iface_tx_after - iface_tx_before;
+        }
+
+        printf(
+            "Measured interface TX delta: packets=%" PRIu64
+            " bytes=%" PRIu64 "\n",
+            measured_tx_packets,
+            iface_tx_bytes_after >= iface_tx_bytes_before ?
+                iface_tx_bytes_after - iface_tx_bytes_before : 0
+        );
+        fflush(stdout);
+    }
+
     close(rx_sock);
     close(tx_sock);
     free(payload);
@@ -451,20 +593,44 @@ int fpga_loopback_load_test(
     result->sent_packets = sent_packets;
     result->send_errors = send_errors;
     result->drained_packets = drained_packets;
+    result->measured_tx_packets = (int)measured_tx_packets;
 
-    result->elapsed_s = (double)(t1 - t0) / 1000000000.0;
+    enqueue_elapsed_s = (double)(t1 - t0) / 1000000000.0;
+    wire_elapsed_s = estimate_wire_elapsed_s(
+        measured_tx_packets,
+        payload_size,
+        iface_speed_mbps
+    );
+    effective_elapsed_s = enqueue_elapsed_s;
+
+    if (wire_elapsed_s > effective_elapsed_s) {
+        effective_elapsed_s = wire_elapsed_s;
+    }
+
+    if (effective_elapsed_s > enqueue_elapsed_s) {
+        printf(
+            "Throughput elapsed capped by %d Mb/s wire time: "
+            "enqueue=%.6f s effective=%.6f s\n",
+            iface_speed_mbps,
+            enqueue_elapsed_s,
+            effective_elapsed_s
+        );
+        fflush(stdout);
+    }
+
+    result->elapsed_s = effective_elapsed_s;
 
     if (result->elapsed_s > 0.0) {
         result->packets_per_second =
-            (double)sent_packets / result->elapsed_s;
+            (double)measured_tx_packets / result->elapsed_s;
 
         result->payload_mbps =
-            ((double)sent_packets * (double)payload_size * 8.0) /
+            ((double)measured_tx_packets * (double)payload_size * 8.0) /
             result->elapsed_s /
             1000000.0;
 
         result->estimated_wire_mbps =
-            ((double)sent_packets *
+            ((double)measured_tx_packets *
              (double)(payload_size + ESTIMATED_ETHERNET_OVERHEAD_BYTES) *
              8.0) /
             result->elapsed_s /

@@ -1381,6 +1381,7 @@ int main(int argc, char **argv)
         printf("Sent packets:           %d\n", result.sent_packets);
         printf("Send errors:            %d\n", result.send_errors);
         printf("Drained RX packets:     %d\n", result.drained_packets);
+        printf("Measured TX packets:    %d\n", result.measured_tx_packets);
         printf("Elapsed:                %.6f s\n", result.elapsed_s);
         printf("Packets/s:              %.3f pkt/s\n", result.packets_per_second);
         printf("Payload goodput:        %.6f Mbps\n", result.payload_mbps);

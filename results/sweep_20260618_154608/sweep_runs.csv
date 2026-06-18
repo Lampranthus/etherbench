@@ -1,0 +1,256 @@
+timestamp,test,payload_size,run,packets,returncode,command
+1781822770,rtt,256,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 256 1234 9999 55555
+1781822772,rtt,256,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 256 1234 9999 55555
+1781822775,rtt,256,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 256 1234 9999 55555
+1781822777,rtt,256,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 256 1234 9999 55555
+1781822779,rtt,256,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 256 1234 9999 55555
+1781822782,rtt,330,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 330 1234 9999 55555
+1781822784,rtt,330,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 330 1234 9999 55555
+1781822786,rtt,330,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 330 1234 9999 55555
+1781822789,rtt,330,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 330 1234 9999 55555
+1781822791,rtt,330,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 330 1234 9999 55555
+1781822793,rtt,404,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 404 1234 9999 55555
+1781822796,rtt,404,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 404 1234 9999 55555
+1781822798,rtt,404,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 404 1234 9999 55555
+1781822800,rtt,404,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 404 1234 9999 55555
+1781822803,rtt,404,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 404 1234 9999 55555
+1781822805,rtt,478,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 478 1234 9999 55555
+1781822807,rtt,478,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 478 1234 9999 55555
+1781822810,rtt,478,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 478 1234 9999 55555
+1781822812,rtt,478,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 478 1234 9999 55555
+1781822814,rtt,478,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 478 1234 9999 55555
+1781822817,rtt,552,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 552 1234 9999 55555
+1781822819,rtt,552,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 552 1234 9999 55555
+1781822821,rtt,552,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 552 1234 9999 55555
+1781822824,rtt,552,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 552 1234 9999 55555
+1781822826,rtt,552,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 552 1234 9999 55555
+1781822828,rtt,626,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 626 1234 9999 55555
+1781822831,rtt,626,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 626 1234 9999 55555
+1781822833,rtt,626,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 626 1234 9999 55555
+1781822836,rtt,626,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 626 1234 9999 55555
+1781822838,rtt,626,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 626 1234 9999 55555
+1781822840,rtt,700,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 700 1234 9999 55555
+1781822843,rtt,700,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 700 1234 9999 55555
+1781822845,rtt,700,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 700 1234 9999 55555
+1781822847,rtt,700,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 700 1234 9999 55555
+1781822850,rtt,700,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 700 1234 9999 55555
+1781822852,rtt,774,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 774 1234 9999 55555
+1781822855,rtt,774,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 774 1234 9999 55555
+1781822857,rtt,774,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 774 1234 9999 55555
+1781822859,rtt,774,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 774 1234 9999 55555
+1781822862,rtt,774,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 774 1234 9999 55555
+1781822864,rtt,848,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 848 1234 9999 55555
+1781822866,rtt,848,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 848 1234 9999 55555
+1781822869,rtt,848,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 848 1234 9999 55555
+1781822871,rtt,848,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 848 1234 9999 55555
+1781822874,rtt,848,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 848 1234 9999 55555
+1781822876,rtt,922,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 922 1234 9999 55555
+1781822878,rtt,922,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 922 1234 9999 55555
+1781822881,rtt,922,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 922 1234 9999 55555
+1781822883,rtt,922,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 922 1234 9999 55555
+1781822886,rtt,922,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 922 1234 9999 55555
+1781822888,rtt,996,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 996 1234 9999 55555
+1781822890,rtt,996,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 996 1234 9999 55555
+1781822893,rtt,996,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 996 1234 9999 55555
+1781822895,rtt,996,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 996 1234 9999 55555
+1781822897,rtt,996,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 996 1234 9999 55555
+1781822900,rtt,1070,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1070 1234 9999 55555
+1781822902,rtt,1070,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1070 1234 9999 55555
+1781822905,rtt,1070,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1070 1234 9999 55555
+1781822907,rtt,1070,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1070 1234 9999 55555
+1781822909,rtt,1070,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1070 1234 9999 55555
+1781822912,rtt,1144,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1144 1234 9999 55555
+1781822914,rtt,1144,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1144 1234 9999 55555
+1781822917,rtt,1144,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1144 1234 9999 55555
+1781822919,rtt,1144,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1144 1234 9999 55555
+1781822921,rtt,1144,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1144 1234 9999 55555
+1781822924,rtt,1218,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1218 1234 9999 55555
+1781822926,rtt,1218,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1218 1234 9999 55555
+1781822929,rtt,1218,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1218 1234 9999 55555
+1781822931,rtt,1218,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1218 1234 9999 55555
+1781822934,rtt,1218,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1218 1234 9999 55555
+1781822936,rtt,1292,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1292 1234 9999 55555
+1781822938,rtt,1292,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1292 1234 9999 55555
+1781822941,rtt,1292,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1292 1234 9999 55555
+1781822943,rtt,1292,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1292 1234 9999 55555
+1781822946,rtt,1292,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1292 1234 9999 55555
+1781822948,rtt,1366,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1366 1234 9999 55555
+1781822951,rtt,1366,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1366 1234 9999 55555
+1781822953,rtt,1366,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1366 1234 9999 55555
+1781822955,rtt,1366,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1366 1234 9999 55555
+1781822958,rtt,1366,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1366 1234 9999 55555
+1781822960,rtt,1440,1,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1440 1234 9999 55555
+1781822963,rtt,1440,2,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1440 1234 9999 55555
+1781822965,rtt,1440,3,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1440 1234 9999 55555
+1781822967,rtt,1440,4,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1440 1234 9999 55555
+1781822970,rtt,1440,5,1000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-rtt 192.168.1.12 1000 1440 1234 9999 55555
+1781822974,loopback,256,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 256 1234 9999 55555
+1781822978,loopback,256,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 256 1234 9999 55555
+1781822982,loopback,256,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 256 1234 9999 55555
+1781822985,loopback,256,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 256 1234 9999 55555
+1781822989,loopback,256,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 256 1234 9999 55555
+1781822993,loopback,330,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 330 1234 9999 55555
+1781822997,loopback,330,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 330 1234 9999 55555
+1781823002,loopback,330,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 330 1234 9999 55555
+1781823006,loopback,330,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 330 1234 9999 55555
+1781823010,loopback,330,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 330 1234 9999 55555
+1781823015,loopback,404,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 404 1234 9999 55555
+1781823020,loopback,404,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 404 1234 9999 55555
+1781823025,loopback,404,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 404 1234 9999 55555
+1781823030,loopback,404,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 404 1234 9999 55555
+1781823034,loopback,404,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 404 1234 9999 55555
+1781823040,loopback,478,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 478 1234 9999 55555
+1781823045,loopback,478,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 478 1234 9999 55555
+1781823051,loopback,478,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 478 1234 9999 55555
+1781823056,loopback,478,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 478 1234 9999 55555
+1781823062,loopback,478,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 478 1234 9999 55555
+1781823068,loopback,552,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 552 1234 9999 55555
+1781823074,loopback,552,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 552 1234 9999 55555
+1781823080,loopback,552,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 552 1234 9999 55555
+1781823086,loopback,552,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 552 1234 9999 55555
+1781823092,loopback,552,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 552 1234 9999 55555
+1781823098,loopback,626,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 626 1234 9999 55555
+1781823105,loopback,626,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 626 1234 9999 55555
+1781823111,loopback,626,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 626 1234 9999 55555
+1781823118,loopback,626,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 626 1234 9999 55555
+1781823125,loopback,626,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 626 1234 9999 55555
+1781823132,loopback,700,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 700 1234 9999 55555
+1781823139,loopback,700,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 700 1234 9999 55555
+1781823146,loopback,700,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 700 1234 9999 55555
+1781823153,loopback,700,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 700 1234 9999 55555
+1781823161,loopback,700,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 700 1234 9999 55555
+1781823168,loopback,774,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 774 1234 9999 55555
+1781823176,loopback,774,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 774 1234 9999 55555
+1781823184,loopback,774,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 774 1234 9999 55555
+1781823192,loopback,774,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 774 1234 9999 55555
+1781823200,loopback,774,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 774 1234 9999 55555
+1781823208,loopback,848,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 848 1234 9999 55555
+1781823216,loopback,848,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 848 1234 9999 55555
+1781823225,loopback,848,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 848 1234 9999 55555
+1781823233,loopback,848,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 848 1234 9999 55555
+1781823242,loopback,848,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 848 1234 9999 55555
+1781823251,loopback,922,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 922 1234 9999 55555
+1781823260,loopback,922,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 922 1234 9999 55555
+1781823269,loopback,922,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 922 1234 9999 55555
+1781823277,loopback,922,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 922 1234 9999 55555
+1781823286,loopback,922,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 922 1234 9999 55555
+1781823296,loopback,996,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 996 1234 9999 55555
+1781823306,loopback,996,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 996 1234 9999 55555
+1781823315,loopback,996,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 996 1234 9999 55555
+1781823325,loopback,996,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 996 1234 9999 55555
+1781823334,loopback,996,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 996 1234 9999 55555
+1781823344,loopback,1070,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1070 1234 9999 55555
+1781823355,loopback,1070,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1070 1234 9999 55555
+1781823365,loopback,1070,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1070 1234 9999 55555
+1781823375,loopback,1070,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1070 1234 9999 55555
+1781823385,loopback,1070,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1070 1234 9999 55555
+1781823396,loopback,1144,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1144 1234 9999 55555
+1781823407,loopback,1144,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1144 1234 9999 55555
+1781823417,loopback,1144,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1144 1234 9999 55555
+1781823428,loopback,1144,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1144 1234 9999 55555
+1781823439,loopback,1144,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1144 1234 9999 55555
+1781823450,loopback,1218,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1218 1234 9999 55555
+1781823462,loopback,1218,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1218 1234 9999 55555
+1781823473,loopback,1218,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1218 1234 9999 55555
+1781823484,loopback,1218,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1218 1234 9999 55555
+1781823496,loopback,1218,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1218 1234 9999 55555
+1781823508,loopback,1292,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1292 1234 9999 55555
+1781823520,loopback,1292,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1292 1234 9999 55555
+1781823531,loopback,1292,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1292 1234 9999 55555
+1781823543,loopback,1292,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1292 1234 9999 55555
+1781823555,loopback,1292,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1292 1234 9999 55555
+1781823568,loopback,1366,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1366 1234 9999 55555
+1781823580,loopback,1366,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1366 1234 9999 55555
+1781823593,loopback,1366,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1366 1234 9999 55555
+1781823605,loopback,1366,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1366 1234 9999 55555
+1781823618,loopback,1366,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1366 1234 9999 55555
+1781823631,loopback,1440,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1440 1234 9999 55555
+1781823644,loopback,1440,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1440 1234 9999 55555
+1781823657,loopback,1440,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1440 1234 9999 55555
+1781823671,loopback,1440,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1440 1234 9999 55555
+1781823684,loopback,1440,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-loopback-test eth0 192.168.1.12 1000000 1440 1234 9999 55555
+1781823687,tx,256,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 256 random 55555 9999
+1781823690,tx,256,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 256 random 55555 9999
+1781823693,tx,256,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 256 random 55555 9999
+1781823697,tx,256,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 256 random 55555 9999
+1781823700,tx,256,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 256 random 55555 9999
+1781823704,tx,330,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 330 random 55555 9999
+1781823707,tx,330,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 330 random 55555 9999
+1781823711,tx,330,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 330 random 55555 9999
+1781823715,tx,330,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 330 random 55555 9999
+1781823719,tx,330,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 330 random 55555 9999
+1781823723,tx,404,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 404 random 55555 9999
+1781823728,tx,404,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 404 random 55555 9999
+1781823732,tx,404,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 404 random 55555 9999
+1781823736,tx,404,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 404 random 55555 9999
+1781823740,tx,404,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 404 random 55555 9999
+1781823745,tx,478,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 478 random 55555 9999
+1781823750,tx,478,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 478 random 55555 9999
+1781823755,tx,478,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 478 random 55555 9999
+1781823760,tx,478,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 478 random 55555 9999
+1781823765,tx,478,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 478 random 55555 9999
+1781823771,tx,552,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 552 random 55555 9999
+1781823776,tx,552,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 552 random 55555 9999
+1781823782,tx,552,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 552 random 55555 9999
+1781823787,tx,552,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 552 random 55555 9999
+1781823793,tx,552,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 552 random 55555 9999
+1781823799,tx,626,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 626 random 55555 9999
+1781823805,tx,626,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 626 random 55555 9999
+1781823811,tx,626,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 626 random 55555 9999
+1781823817,tx,626,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 626 random 55555 9999
+1781823823,tx,626,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 626 random 55555 9999
+1781823830,tx,700,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 700 random 55555 9999
+1781823837,tx,700,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 700 random 55555 9999
+1781823843,tx,700,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 700 random 55555 9999
+1781823850,tx,700,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 700 random 55555 9999
+1781823857,tx,700,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 700 random 55555 9999
+1781823864,tx,774,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 774 random 55555 9999
+1781823871,tx,774,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 774 random 55555 9999
+1781823878,tx,774,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 774 random 55555 9999
+1781823886,tx,774,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 774 random 55555 9999
+1781823893,tx,774,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 774 random 55555 9999
+1781823901,tx,848,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 848 random 55555 9999
+1781823909,tx,848,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 848 random 55555 9999
+1781823916,tx,848,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 848 random 55555 9999
+1781823924,tx,848,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 848 random 55555 9999
+1781823932,tx,848,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 848 random 55555 9999
+1781823940,tx,922,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 922 random 55555 9999
+1781823949,tx,922,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 922 random 55555 9999
+1781823957,tx,922,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 922 random 55555 9999
+1781823966,tx,922,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 922 random 55555 9999
+1781823974,tx,922,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 922 random 55555 9999
+1781823983,tx,996,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 996 random 55555 9999
+1781823992,tx,996,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 996 random 55555 9999
+1781824001,tx,996,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 996 random 55555 9999
+1781824010,tx,996,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 996 random 55555 9999
+1781824019,tx,996,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 996 random 55555 9999
+1781824029,tx,1070,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1070 random 55555 9999
+1781824039,tx,1070,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1070 random 55555 9999
+1781824048,tx,1070,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1070 random 55555 9999
+1781824058,tx,1070,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1070 random 55555 9999
+1781824067,tx,1070,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1070 random 55555 9999
+1781824078,tx,1144,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1144 random 55555 9999
+1781824088,tx,1144,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1144 random 55555 9999
+1781824098,tx,1144,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1144 random 55555 9999
+1781824108,tx,1144,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1144 random 55555 9999
+1781824118,tx,1144,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1144 random 55555 9999
+1781824129,tx,1218,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1218 random 55555 9999
+1781824140,tx,1218,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1218 random 55555 9999
+1781824151,tx,1218,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1218 random 55555 9999
+1781824162,tx,1218,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1218 random 55555 9999
+1781824173,tx,1218,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1218 random 55555 9999
+1781824184,tx,1292,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1292 random 55555 9999
+1781824195,tx,1292,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1292 random 55555 9999
+1781824207,tx,1292,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1292 random 55555 9999
+1781824218,tx,1292,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1292 random 55555 9999
+1781824229,tx,1292,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1292 random 55555 9999
+1781824241,tx,1366,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1366 random 55555 9999
+1781824253,tx,1366,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1366 random 55555 9999
+1781824265,tx,1366,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1366 random 55555 9999
+1781824277,tx,1366,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1366 random 55555 9999
+1781824289,tx,1366,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1366 random 55555 9999
+1781824302,tx,1440,1,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1440 random 55555 9999
+1781824315,tx,1440,2,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1440 random 55555 9999
+1781824327,tx,1440,3,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1440 random 55555 9999
+1781824340,tx,1440,4,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1440 random 55555 9999
+1781824352,tx,1440,5,1000000,0,/home/luisfercrtez/Documents/etherbench/etherbench fpga-tx-test eth0 192.168.1.12 1000000 1440 random 55555 9999

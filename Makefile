@@ -1,6 +1,8 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -Iinclude
 LDLIBS = -lm
+FPGA_IP ?= 192.168.1.12
+FPGA_PORT ?= 55555
 
 SRC = 	src/main.c \
 		src/iface_stats.c \
@@ -17,6 +19,8 @@ SRC = 	src/main.c \
 		src/utils.c
 OUT = etherbench
 
+.PHONY: all clean clear-logs eth0 up down
+
 all:
 	$(CC) $(CFLAGS) $(SRC) -o $(OUT) $(LDLIBS)
 
@@ -31,3 +35,23 @@ clear-logs:
 	rm -f fpga_loopback_load_logs.csv
 	rm -f fpga_loopback_loss_logs.csv
 	rm -f fpga_tx_test_logs.csv
+
+eth0:
+	@:
+
+down:
+	@if echo "$(MAKECMDGOALS)" | grep -qw eth0; then \
+		ip link set eth0 down; \
+	else \
+		echo "Usage: make eth0 down"; \
+		exit 1; \
+	fi
+
+up: all
+	@if echo "$(MAKECMDGOALS)" | grep -qw eth0; then \
+		ip link set eth0 up; \
+		./$(OUT) fpga-arp eth0 $(FPGA_IP) $(FPGA_PORT); \
+	else \
+		echo "Usage: make eth0 up"; \
+		exit 1; \
+	fi
