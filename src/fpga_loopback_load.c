@@ -19,7 +19,7 @@
 #include <fcntl.h>
 
 #define LOOPBACK_DRAIN_EVERY_N_PACKETS 1024
-#define LOOPBACK_PROGRESS_EVERY_N_PACKETS 100000
+#define LOOPBACK_PACE_BURST_BYTES 65536
 #define LOOPBACK_WAIT_US 500000
 
 /*
@@ -47,21 +47,6 @@ static uint64_t now_ns(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
     return ((uint64_t)ts.tv_sec * 1000000000ULL) + (uint64_t)ts.tv_nsec;
-}
-
-static void wait_until_ns(uint64_t target_ns)
-{
-    while (1) {
-        uint64_t current_ns = now_ns();
-
-        if (current_ns >= target_ns) {
-            return;
-        }
-
-        if (target_ns - current_ns > SEND_PACE_SLEEP_MARGIN_NS) {
-            usleep((useconds_t)((target_ns - current_ns - SEND_PACE_SLEEP_MARGIN_NS) / 1000));
-        }
-    }
 }
 
 static uint32_t xorshift32(uint32_t *state)
@@ -160,6 +145,27 @@ static int make_tx_socket(void)
     }
 
     return sock;
+}
+
+static int connect_tx_socket(
+    int sock,
+    const struct sockaddr_in *dest_addr
+)
+{
+    if (dest_addr == NULL) {
+        return -1;
+    }
+
+    if (connect(
+            sock,
+            (const struct sockaddr *)dest_addr,
+            sizeof(*dest_addr)
+        ) < 0) {
+        perror("connect tx socket");
+        return -1;
+    }
+
+    return 0;
 }
 
 static int build_dest_addr(
@@ -292,53 +298,6 @@ static int read_iface_tx_snapshot(
     return 0;
 }
 
-static uint64_t estimate_packet_interval_ns(
-    int payload_size,
-    int speed_mbps
-)
-{
-    double bits;
-    double interval_ns;
-
-    if (payload_size <= 0 || speed_mbps <= 0) {
-        return 0;
-    }
-
-    bits =
-        (double)(payload_size + ESTIMATED_ETHERNET_OVERHEAD_BYTES) *
-        8.0;
-
-    interval_ns = bits * 1000.0 / (double)speed_mbps;
-
-    if (interval_ns < 1.0) {
-        return 1;
-    }
-
-    return (uint64_t)interval_ns;
-}
-
-static void print_iface_tx_progress(
-    const char *iface_name,
-    uint64_t target_tx_packets
-)
-{
-    uint64_t tx_packets = 0;
-    int speed_mbps = DEFAULT_LINK_MBPS;
-
-    if (iface_name == NULL) {
-        return;
-    }
-
-    if (read_iface_tx_snapshot(iface_name, &tx_packets, &speed_mbps) == 0) {
-        printf(
-            "  Interface TX counter: %" PRIu64 "/%" PRIu64 "\n",
-            tx_packets,
-            target_tx_packets
-        );
-        fflush(stdout);
-    }
-}
-
 int fpga_loopback_load_test(
     const char *iface_name,
     const char *fpga_ip,
@@ -364,7 +323,6 @@ int fpga_loopback_load_test(
     uint64_t t0;
     uint64_t t1;
     uint64_t iface_tx_before = 0;
-    uint64_t send_interval_ns = 0;
     int iface_speed_mbps = DEFAULT_LINK_MBPS;
 
     if (fpga_ip == NULL || result == NULL) {
@@ -414,6 +372,13 @@ int fpga_loopback_load_test(
         return -1;
     }
 
+    if (connect_tx_socket(tx_sock, &dest_addr) != 0) {
+        close(rx_sock);
+        close(tx_sock);
+        free(payload);
+        return -1;
+    }
+
     if (iface_name != NULL &&
         read_iface_tx_snapshot(
             iface_name,
@@ -430,50 +395,16 @@ int fpga_loopback_load_test(
     printf("  data port:    %d\n", fpga_data_port);
     printf("  local port:   %d\n", local_port);
 
-    send_interval_ns = estimate_packet_interval_ns(
-        payload_size,
-        iface_speed_mbps
-    );
-
-    if (send_interval_ns > 0) {
-        printf(
-            "  pacing:       %.3f us/packet at %d Mb/s\n",
-            (double)send_interval_ns / 1000.0,
-            iface_speed_mbps
-        );
-    }
-
-    fflush(stdout);
-
     t0 = now_ns();
 
     for (i = 0; i < packet_count; i++) {
         ssize_t n;
-        uint64_t target_send_ns;
 
-        if (send_interval_ns > 0 && i > 0) {
-            target_send_ns = t0 + ((uint64_t)i * send_interval_ns);
-            wait_until_ns(target_send_ns);
-        }
-
-        /*
-         * Change the first bytes slightly per packet.
-         * This avoids sending exactly the same payload every time.
-         */
-        if (payload_size >= 4) {
-            payload[0] = (uint8_t)((i >> 24) & 0xFF);
-            payload[1] = (uint8_t)((i >> 16) & 0xFF);
-            payload[2] = (uint8_t)((i >> 8) & 0xFF);
-            payload[3] = (uint8_t)(i & 0xFF);
-        }
-
-        n = sendto(
+        n = send(
             tx_sock,
             payload,
             (size_t)payload_size,
-            0,
-            (struct sockaddr *)&dest_addr,
-            sizeof(dest_addr)
+            0
         );
 
         if (n < 0) {
@@ -491,31 +422,9 @@ int fpga_loopback_load_test(
         if ((i % LOOPBACK_DRAIN_EVERY_N_PACKETS) == 0) {
             drained_packets += drain_rx_socket(rx_sock);
         }
-
-        if (sent_packets > 0 &&
-            (sent_packets % LOOPBACK_PROGRESS_EVERY_N_PACKETS) == 0) {
-            printf(
-                "  Sent packets: %d/%d\n",
-                sent_packets,
-                packet_count
-            );
-            fflush(stdout);
-
-            if (iface_name != NULL) {
-                print_iface_tx_progress(
-                    iface_name,
-                    iface_tx_before + (uint64_t)sent_packets
-                );
-            }
-        }
     }
 
-    printf(
-        "Finished enqueueing UDP packets: sent=%d errors=%d\n",
-        sent_packets,
-        send_errors
-    );
-    fflush(stdout);
+    t1 = now_ns();
 
     /*
     * Drain remaining loopback replies.
@@ -526,15 +435,12 @@ int fpga_loopback_load_test(
     *
     *   ICMP Destination unreachable (Port unreachable)
     */
-    drained_packets += drain_rx_socket(rx_sock);
 
     drained_packets += drain_rx_socket_until_quiet(
         rx_sock,
         50,     /* quiet time: no packets for 50 ms */
         1000    /* max wait: 1000 ms */
     );
-
-    t1 = now_ns();
 
     close(rx_sock);
     close(tx_sock);
