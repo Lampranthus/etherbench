@@ -19,6 +19,7 @@ typedef struct {
 } fpga_loopback_load_result_t;
 
 int fpga_loopback_load_test(
+    const char *iface_name,
     const char *fpga_ip,
     int fpga_data_port,
     int local_port,

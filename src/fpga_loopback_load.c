@@ -3,12 +3,14 @@
 #include "fpga_loopback_load.h"
 #include "fpga_ctrl.h"
 #include "fpga_stats.h"
+#include "iface_stats.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -34,6 +36,8 @@
  * This is an estimate. Payload Mbps is exact from application payload.
  */
 #define ESTIMATED_ETHERNET_OVERHEAD_BYTES 66
+#define DEFAULT_LINK_MBPS 1000
+#define TX_WAIT_EXTRA_NS 5000000000ULL
 
 static uint64_t now_ns(void)
 {
@@ -245,7 +249,96 @@ static int drain_rx_socket_until_quiet(
     return drained;
 }
 
+static int read_iface_tx_snapshot(
+    const char *iface_name,
+    uint64_t *tx_packets,
+    int *speed_mbps
+)
+{
+    iface_stats_t stats;
+
+    if (iface_name == NULL || tx_packets == NULL || speed_mbps == NULL) {
+        return -1;
+    }
+
+    if (read_iface_stats(iface_name, &stats) != 0) {
+        return -1;
+    }
+
+    *tx_packets = stats.tx_packets;
+
+    if (stats.speed_mbps > 0) {
+        *speed_mbps = stats.speed_mbps;
+    } else {
+        *speed_mbps = DEFAULT_LINK_MBPS;
+    }
+
+    return 0;
+}
+
+static uint64_t estimate_tx_wait_ns(
+    int sent_packets,
+    int payload_size,
+    int speed_mbps
+)
+{
+    double bits;
+    double seconds;
+
+    if (sent_packets <= 0 || payload_size <= 0 || speed_mbps <= 0) {
+        return TX_WAIT_EXTRA_NS;
+    }
+
+    bits =
+        (double)sent_packets *
+        (double)(payload_size + ESTIMATED_ETHERNET_OVERHEAD_BYTES) *
+        8.0;
+
+    seconds = bits / ((double)speed_mbps * 1000000.0);
+
+    return (uint64_t)(seconds * 2.0 * 1000000000.0) + TX_WAIT_EXTRA_NS;
+}
+
+static void wait_for_iface_tx_packets(
+    const char *iface_name,
+    uint64_t target_tx_packets,
+    uint64_t max_wait_ns
+)
+{
+    uint64_t start_ns;
+    uint64_t tx_packets = 0;
+    int speed_mbps = DEFAULT_LINK_MBPS;
+
+    if (iface_name == NULL) {
+        return;
+    }
+
+    start_ns = now_ns();
+
+    while (now_ns() - start_ns < max_wait_ns) {
+        if (read_iface_tx_snapshot(iface_name, &tx_packets, &speed_mbps) != 0) {
+            return;
+        }
+
+        if (tx_packets >= target_tx_packets) {
+            return;
+        }
+
+        usleep(1000);
+    }
+
+    fprintf(
+        stderr,
+        "Warning: timed out waiting for interface TX counter on %s "
+        "(target=%" PRIu64 ", current=%" PRIu64 ")\n",
+        iface_name,
+        target_tx_packets,
+        tx_packets
+    );
+}
+
 int fpga_loopback_load_test(
+    const char *iface_name,
     const char *fpga_ip,
     int fpga_data_port,
     int local_port,
@@ -268,6 +361,8 @@ int fpga_loopback_load_test(
 
     uint64_t t0;
     uint64_t t1;
+    uint64_t iface_tx_before = 0;
+    int iface_speed_mbps = DEFAULT_LINK_MBPS;
 
     if (fpga_ip == NULL || result == NULL) {
         return -1;
@@ -314,6 +409,16 @@ int fpga_loopback_load_test(
         close(tx_sock);
         free(payload);
         return -1;
+    }
+
+    if (iface_name != NULL &&
+        read_iface_tx_snapshot(
+            iface_name,
+            &iface_tx_before,
+            &iface_speed_mbps
+        ) != 0) {
+        fprintf(stderr, "Warning: could not read TX counter for %s\n", iface_name);
+        iface_name = NULL;
     }
 
     printf("Starting loopback load test\n");
@@ -374,6 +479,14 @@ int fpga_loopback_load_test(
     *   ICMP Destination unreachable (Port unreachable)
     */
     drained_packets += drain_rx_socket(rx_sock);
+
+    if (iface_name != NULL) {
+        wait_for_iface_tx_packets(
+            iface_name,
+            iface_tx_before + (uint64_t)sent_packets,
+            estimate_tx_wait_ns(sent_packets, payload_size, iface_speed_mbps)
+        );
+    }
 
     drained_packets += drain_rx_socket_until_quiet(
         rx_sock,

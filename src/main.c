@@ -1318,6 +1318,7 @@ int main(int argc, char **argv)
         printf("========================================\n");
 
         if (fpga_loopback_load_test(
+                iface_name,
                 fpga_ip,
                 fpga_data_port,
                 local_port,
