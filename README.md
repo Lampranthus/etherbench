@@ -66,3 +66,11 @@
    # example for namespace eth_ns
    ./etherbench fpga-loopback-test eth0 192.168.1.12 10000000 1440 1234 9999 55555
    ```
+6. Runnign trasmition test.
+   ```bash
+   ./etherbench fpga-tx-test <iface> <fpga_ip> <packets> <payload_size> <mode> [ctrl_port] [local_port]
+   ```
+   ```bash
+   # example for namespace eth_ns
+   ./etherbench fpga-tx-test eth0 192.168.1.12 10000000 1440 random 55555 9999
+   ```
