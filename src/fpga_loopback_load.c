@@ -19,6 +19,7 @@
 #include <fcntl.h>
 
 #define LOOPBACK_DRAIN_EVERY_N_PACKETS 1024
+#define LOOPBACK_PROGRESS_EVERY_N_PACKETS 100000
 #define LOOPBACK_WAIT_US 500000
 
 /*
@@ -306,6 +307,7 @@ static void wait_for_iface_tx_packets(
 )
 {
     uint64_t start_ns;
+    uint64_t last_progress_ns;
     uint64_t tx_packets = 0;
     int speed_mbps = DEFAULT_LINK_MBPS;
 
@@ -314,14 +316,46 @@ static void wait_for_iface_tx_packets(
     }
 
     start_ns = now_ns();
+    last_progress_ns = start_ns;
+
+    printf(
+        "Waiting for %s TX counter to reach %" PRIu64 " packets\n",
+        iface_name,
+        target_tx_packets
+    );
+    fflush(stdout);
 
     while (now_ns() - start_ns < max_wait_ns) {
+        uint64_t current_ns;
+
         if (read_iface_tx_snapshot(iface_name, &tx_packets, &speed_mbps) != 0) {
             return;
         }
 
         if (tx_packets >= target_tx_packets) {
+            printf(
+                "Interface TX counter reached target: %" PRIu64 "/%" PRIu64 "\n",
+                tx_packets,
+                target_tx_packets
+            );
+            fflush(stdout);
             return;
+        }
+
+        current_ns = now_ns();
+
+        if (current_ns - last_progress_ns >= 1000000000ULL) {
+            double elapsed_s = (double)(current_ns - start_ns) / 1000000000.0;
+
+            printf(
+                "  TX counter: %" PRIu64 "/%" PRIu64 " packets after %.1f s\n",
+                tx_packets,
+                target_tx_packets,
+                elapsed_s
+            );
+            fflush(stdout);
+
+            last_progress_ns = current_ns;
         }
 
         usleep(1000);
@@ -426,6 +460,7 @@ int fpga_loopback_load_test(
     printf("  payload:      %d bytes\n", payload_size);
     printf("  data port:    %d\n", fpga_data_port);
     printf("  local port:   %d\n", local_port);
+    fflush(stdout);
 
     t0 = now_ns();
 
@@ -467,7 +502,24 @@ int fpga_loopback_load_test(
         if ((i % LOOPBACK_DRAIN_EVERY_N_PACKETS) == 0) {
             drained_packets += drain_rx_socket(rx_sock);
         }
+
+        if (sent_packets > 0 &&
+            (sent_packets % LOOPBACK_PROGRESS_EVERY_N_PACKETS) == 0) {
+            printf(
+                "  Sent packets: %d/%d\n",
+                sent_packets,
+                packet_count
+            );
+            fflush(stdout);
+        }
     }
+
+    printf(
+        "Finished enqueueing UDP packets: sent=%d errors=%d\n",
+        sent_packets,
+        send_errors
+    );
+    fflush(stdout);
 
     /*
     * Drain remaining loopback replies.
