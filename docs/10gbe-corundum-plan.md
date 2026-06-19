@@ -247,21 +247,44 @@ sudo ip netns exec nic_ns \
 
 No mezclar resultados de ambos perfiles en una misma curva.
 
-## Diseño propuesto para Etherbench
+## Primera implementación de Etherbench 10GbE
 
-Crear `scripts/etherbench_10gbe.py` con los subcomandos:
+El script `scripts/etherbench_10gbe.py` ya implementa la validación del entorno
+y la primera ejecución TCP/UDP bidireccional:
+
+```bash
+sudo scripts/etherbench_10gbe.py check
+
+sudo scripts/etherbench_10gbe.py run \
+  --duration 5 \
+  --repeat 1 \
+  --protocols tcp udp \
+  --directions corundum-to-nic nic-to-corundum \
+  --output-dir results/10gbe_smoke_test
+```
+
+Para revisar los comandos sin usar namespaces ni transmitir tráfico:
+
+```bash
+scripts/etherbench_10gbe.py run --dry-run \
+  --duration 5 --repeat 1 \
+  --output-dir /tmp/etherbench_10gbe_dry_run
+```
+
+Subcomandos actuales y planeados:
 
 | Subcomando | Responsabilidad |
 |---|---|
 | `check` | Validar herramientas, interfaces, drivers, MTU y enlace 10GbE |
-| `setup` | Crear namespaces y configurar IP/MTU |
+| `setup` | Planeado: crear namespaces y configurar IP/MTU |
 | `run` | Ejecutar RTT, TCP y UDP en ambas direcciones |
-| `summarize` | Construir CSV con media y desviación por punto |
-| `plot` | Generar RTT, goodput, PPS, pérdidas, jitter y CPU |
-| `teardown` | Detener iperf3 y eliminar namespaces de forma controlada |
+| `summarize` | Planeado: construir CSV con media y desviación por punto |
+| `plot` | Planeado: generar RTT, goodput, PPS, pérdidas, jitter y CPU |
+| `teardown` | Planeado: eliminar namespaces de forma controlada |
 
-El backend inicial será `iperf3 -J`. Python debe leer JSON de forma estructurada
-y no analizar texto destinado a humanos.
+El backend inicial usa `iperf3 -J`. Python lee JSON de forma estructurada y no
+analiza texto destinado a humanos. Cada ejecución inicia un servidor `iperf3
+-s -1`, que acepta una prueba y termina automáticamente.
 
 Salida propuesta:
 

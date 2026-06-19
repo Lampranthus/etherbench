@@ -980,6 +980,13 @@ topología, configuración con namespaces, línea base con `iperf3`, métricas y
 etapas de implementación están documentadas en
 [`docs/10gbe-corundum-plan.md`](docs/10gbe-corundum-plan.md).
 
+La primera implementación se ejecuta con:
+
+```bash
+sudo scripts/etherbench_10gbe.py check
+sudo scripts/etherbench_10gbe.py run --duration 5 --repeat 1
+```
+
 ## Estructura del proyecto
 
 ```text
