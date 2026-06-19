@@ -288,14 +288,9 @@ def make_output_dir(output_dir: Path | None) -> Path:
 
 def test_cases(args: argparse.Namespace) -> list[TestCase]:
     corundum, nic = configured_endpoints(args)
-    directions = {
-        "corundum-to-nic": (corundum, nic),
-        "nic-to-corundum": (nic, corundum),
-    }
     return [
-        TestCase(direction, protocol, *directions[direction])
+        TestCase("nic-to-corundum", protocol, nic, corundum)
         for protocol in args.protocols
-        for direction in args.directions
     ]
 
 
@@ -352,15 +347,18 @@ def write_snapshot(
     snapshot_dir = directory / f"counters_{phase}"
     snapshot_dir.mkdir(exist_ok=True)
 
-    for endpoint in (test.source, test.destination):
-        stem = f"{test.direction}_{test.protocol}_run{repeat}_{endpoint.name}"
-        link = read_link(endpoint)
-        (snapshot_dir / f"{stem}_link.json").write_text(
-            json.dumps(link, indent=2) + "\n"
-        )
-        (snapshot_dir / f"{stem}_ethtool.txt").write_text(
-            read_ethtool_stats(endpoint)
-        )
+    endpoint = test.source
+    if endpoint.name != "nic":
+        raise RuntimeError("run counters must be collected from the NIC source")
+
+    stem = f"{test.direction}_{test.protocol}_run{repeat}_{endpoint.name}"
+    link = read_link(endpoint)
+    (snapshot_dir / f"{stem}_link.json").write_text(
+        json.dumps(link, indent=2) + "\n"
+    )
+    (snapshot_dir / f"{stem}_ethtool.txt").write_text(
+        read_ethtool_stats(endpoint)
+    )
 
 
 def number(data: dict[str, Any], *path: str, default: float = 0.0) -> float:
@@ -558,15 +556,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser(
         "run",
-        help="run iperf3 tests in both directions and save raw results",
+        help="run iperf3 from the conventional NIC toward Corundum",
     )
     add_endpoint_arguments(run_parser)
-    run_parser.add_argument(
-        "--directions",
-        nargs="+",
-        choices=["corundum-to-nic", "nic-to-corundum"],
-        default=["corundum-to-nic", "nic-to-corundum"],
-    )
     run_parser.add_argument(
         "--protocols",
         nargs="+",

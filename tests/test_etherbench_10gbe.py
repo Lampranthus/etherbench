@@ -1,8 +1,10 @@
 import importlib.util
 import sys
+import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "etherbench_10gbe.py"
@@ -76,17 +78,24 @@ class CommandTests(unittest.TestCase):
             udp_payload=1440,
         )
 
-    def test_corundum_to_nic_tcp_command(self):
-        test = MODULE.TestCase(
-            "corundum-to-nic", "tcp", self.corundum, self.nic
+    def test_test_cases_only_run_from_nic_to_corundum(self):
+        args = Namespace(
+            corundum_namespace="corundum0_ns",
+            nic_namespace="nic_ns",
+            corundum_interface="corundum0",
+            nic_interface="nic0",
+            corundum_ip="192.168.1.100",
+            nic_ip="192.168.1.110",
+            protocols=["tcp", "udp"],
         )
 
-        command = MODULE.iperf_client_command(test, self.args, 5201)
+        tests = MODULE.test_cases(args)
 
-        self.assertEqual(command[:4], ["ip", "netns", "exec", "corundum0_ns"])
-        self.assertIn("192.168.1.110", command)
-        self.assertIn("-P", command)
-        self.assertNotIn("-u", command)
+        self.assertEqual(len(tests), 2)
+        for test in tests:
+            self.assertEqual(test.direction, "nic-to-corundum")
+            self.assertEqual(test.source, self.nic)
+            self.assertEqual(test.destination, self.corundum)
 
     def test_nic_to_corundum_udp_command(self):
         test = MODULE.TestCase(
@@ -99,6 +108,27 @@ class CommandTests(unittest.TestCase):
         self.assertIn("192.168.1.100", command)
         self.assertIn("-u", command)
         self.assertIn("1440", command)
+
+    def test_snapshots_only_collect_nic_counters(self):
+        test = MODULE.TestCase(
+            "nic-to-corundum", "udp", self.nic, self.corundum
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(MODULE, "read_link", return_value={"mtu": 1500}) as read_link:
+                with mock.patch.object(
+                    MODULE,
+                    "read_ethtool_stats",
+                    return_value="NIC statistics\n",
+                ) as read_stats:
+                    MODULE.write_snapshot(Path(directory), "before", test, 1)
+
+            read_link.assert_called_once_with(self.nic)
+            read_stats.assert_called_once_with(self.nic)
+            files = [path.name for path in Path(directory).rglob("*") if path.is_file()]
+            self.assertEqual(len(files), 2)
+            self.assertTrue(all("_nic_" in name for name in files))
+            self.assertFalse(any("_corundum_" in name for name in files))
 
 
 if __name__ == "__main__":

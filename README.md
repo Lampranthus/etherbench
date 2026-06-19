@@ -980,7 +980,8 @@ topología, configuración con namespaces, línea base con `iperf3`, métricas y
 etapas de implementación están documentadas en
 [`docs/10gbe-corundum-plan.md`](docs/10gbe-corundum-plan.md).
 
-La primera implementación se ejecuta con:
+La primera implementación genera tráfico desde la NIC convencional hacia
+Corundum y registra solamente los contadores de la NIC:
 
 ```bash
 sudo scripts/etherbench_10gbe.py check

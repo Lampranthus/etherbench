@@ -125,42 +125,26 @@ sudo ip netns exec corundum0_ns ping -c 10 192.168.1.110
 
 ## Línea base con MTU 1500
 
-Iniciar un servidor persistente en el namespace de la NIC:
+Iniciar un servidor persistente en el namespace de Corundum:
 
 ```bash
-sudo ip netns exec nic_ns iperf3 -s -D \
-  --pidfile /run/iperf3-nic-ns.pid
+sudo ip netns exec corundum0_ns iperf3 -s -D \
+  --pidfile /run/iperf3-corundum-ns.pid
 ```
 
-Corundum hacia NIC, TCP:
+NIC hacia Corundum, TCP:
 
 ```bash
-sudo ip netns exec corundum0_ns \
-  iperf3 -c 192.168.1.110 -t 15 -O 2 -P 4 -J \
-  > corundum_to_nic_tcp.json
-```
-
-NIC hacia Corundum, TCP, usando modo reverse:
-
-```bash
-sudo ip netns exec corundum0_ns \
-  iperf3 -c 192.168.1.110 -t 15 -O 2 -P 4 -R -J \
+sudo ip netns exec nic_ns \
+  iperf3 -c 192.168.1.100 -t 15 -O 2 -P 4 -J \
   > nic_to_corundum_tcp.json
 ```
 
-Corundum hacia NIC, UDP con payload de 1440 bytes:
+NIC hacia Corundum, UDP con payload de 1440 bytes:
 
 ```bash
-sudo ip netns exec corundum0_ns \
-  iperf3 -c 192.168.1.110 -u -b 10G -l 1440 -t 15 -O 2 -J \
-  > corundum_to_nic_udp_1440.json
-```
-
-NIC hacia Corundum, UDP:
-
-```bash
-sudo ip netns exec corundum0_ns \
-  iperf3 -c 192.168.1.110 -u -b 10G -l 1440 -t 15 -O 2 -R -J \
+sudo ip netns exec nic_ns \
+  iperf3 -c 192.168.1.100 -u -b 10G -l 1440 -t 15 -O 2 -J \
   > nic_to_corundum_udp_1440.json
 ```
 
@@ -176,7 +160,7 @@ Realizarla únicamente si ambos drivers y el switch/DAC soportan MTU 9000:
 sudo ip netns exec corundum0_ns ip link set corundum0 mtu 9000
 sudo ip netns exec nic_ns ip link set nic0 mtu 9000
 
-sudo ip netns exec corundum0_ns ping -M do -s 8972 -c 5 192.168.1.110
+sudo ip netns exec nic_ns ping -M do -s 8972 -c 5 192.168.1.100
 ```
 
 Para IPv4 sin opciones, un MTU de 9000 permite un payload ICMP de 8972 bytes.
@@ -184,11 +168,11 @@ En UDP, validar el tamaño que utiliza `iperf3` y evitar fragmentación.
 
 ## Contadores antes y después
 
-Capturar por dirección y ejecución:
+Durante `run`, Etherbench captura únicamente los contadores de la NIC
+convencional. Corundum permanece como receptor de `iperf3`, sin consultar sus
+registros hardware durante la medición:
 
 ```bash
-sudo ip netns exec corundum0_ns ip -s link show dev corundum0
-sudo ip netns exec corundum0_ns ethtool -S corundum0
 sudo ip netns exec nic_ns ip -s link show dev nic0
 sudo ip netns exec nic_ns ethtool -S nic0
 ```
@@ -259,7 +243,6 @@ sudo scripts/etherbench_10gbe.py run \
   --duration 5 \
   --repeat 1 \
   --protocols tcp udp \
-  --directions corundum-to-nic nic-to-corundum \
   --output-dir results/10gbe_smoke_test
 ```
 
@@ -284,7 +267,7 @@ Subcomandos actuales y planeados:
 |---|---|
 | `check` | Validar herramientas, interfaces, drivers, MTU y enlace 10GbE |
 | `setup` | Planeado: crear namespaces y configurar IP/MTU |
-| `run` | Ejecutar RTT, TCP y UDP en ambas direcciones |
+| `run` | Ejecutar TCP y UDP desde la NIC hacia Corundum |
 | `summarize` | Planeado: construir CSV con media y desviación por punto |
 | `plot` | Planeado: generar RTT, goodput, PPS, pérdidas, jitter y CPU |
 | `teardown` | Planeado: eliminar namespaces de forma controlada |
@@ -318,7 +301,7 @@ results/10gbe_YYYYMMDD_HHMMSS/
 2. Establecer línea base manual con `ping` e `iperf3`.
 3. Implementar `check` y captura de entorno/contadores.
 4. Implementar ejecución TCP y UDP con JSON.
-5. Añadir ambas direcciones y repeticiones.
+5. Añadir repeticiones y validar estabilidad NIC hacia Corundum.
 6. Añadir barrido de payload y tasa ofrecida.
 7. Generar resúmenes y gráficas con referencia teórica de 10 Gb/s.
 8. Añadir afinidad CPU/NUMA y perfiles de offload.
@@ -330,12 +313,12 @@ results/10gbe_YYYYMMDD_HHMMSS/
 - El tráfico cruza físicamente el enlace, verificado por contadores en ambos
   extremos.
 - Ambas interfaces reportan 10 Gb/s, full duplex y cero errores de enlace.
-- Se miden las dos direcciones por separado.
+- El generador se ejecuta en `nic_ns` y Corundum actúa como receptor.
 - Cada ejecución conserva JSON crudo y snapshots de contadores.
 - TCP alcanza una línea base estable cercana a la capacidad del enlace.
 - UDP reporta goodput, PPS, pérdida y jitter.
 - Los resultados registran MTU, offloads, driver, firmware, NUMA y afinidad.
-- Las gráficas diferencian Corundum a NIC y NIC a Corundum.
+- Las gráficas representan el flujo NIC hacia Corundum.
 - La versión 1GbE continúa funcionando sin cambios.
 
 ## Limpieza manual
@@ -343,8 +326,8 @@ results/10gbe_YYYYMMDD_HHMMSS/
 Detener el servidor y eliminar namespaces:
 
 ```bash
-sudo kill "$(cat /run/iperf3-nic-ns.pid)"
-sudo rm -f /run/iperf3-nic-ns.pid
+sudo kill "$(cat /run/iperf3-corundum-ns.pid)"
+sudo rm -f /run/iperf3-corundum-ns.pid
 sudo ip netns del corundum0_ns
 sudo ip netns del nic_ns
 ```
