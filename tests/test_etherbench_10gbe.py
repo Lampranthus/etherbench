@@ -14,6 +14,11 @@ SPEC.loader.exec_module(MODULE)
 
 
 class IperfResultTests(unittest.TestCase):
+    def test_unknown_ethtool_values(self):
+        self.assertTrue(MODULE.is_unknown_ethtool_value("unknown"))
+        self.assertTrue(MODULE.is_unknown_ethtool_value("Unknown!"))
+        self.assertFalse(MODULE.is_unknown_ethtool_value("10000Mb/s"))
+
     def test_parse_tcp_result(self):
         data = {
             "end": {

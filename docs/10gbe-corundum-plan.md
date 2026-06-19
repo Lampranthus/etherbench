@@ -263,6 +263,13 @@ sudo scripts/etherbench_10gbe.py run \
   --output-dir results/10gbe_smoke_test
 ```
 
+Ejecutar el script desde el namespace principal. No es necesario abrir una
+terminal con `ip netns exec`: Etherbench entra por sí mismo a `corundum0_ns` y
+`nic_ns`. Algunos drivers Corundum no publican `Speed` ni `Duplex` mediante
+`ethtool`; en ese caso `check` muestra una advertencia, valida `UP`, carrier,
+dirección IP y conectividad, y conserva la velocidad como no verificada. La NIC
+convencional debe reportar explícitamente `10000Mb/s` y full duplex.
+
 Para revisar los comandos sin usar namespaces ni transmitir tráfico:
 
 ```bash

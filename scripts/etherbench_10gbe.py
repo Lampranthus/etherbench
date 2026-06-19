@@ -132,6 +132,14 @@ def read_ethtool(endpoint: Endpoint) -> str:
     ).stdout
 
 
+def read_ethtool_driver(endpoint: Endpoint) -> str:
+    result = run_command(
+        namespace_command(endpoint.namespace, ["ethtool", "-i", endpoint.interface]),
+        check=False,
+    )
+    return result.stdout if result.returncode == 0 else result.stderr
+
+
 def read_ethtool_stats(endpoint: Endpoint) -> str:
     result = run_command(
         namespace_command(endpoint.namespace, ["ethtool", "-S", endpoint.interface]),
@@ -159,17 +167,30 @@ def ethtool_field(output: str, field: str) -> str:
     return "unknown"
 
 
-def check_endpoint(endpoint: Endpoint) -> dict[str, str]:
+def is_unknown_ethtool_value(value: str) -> bool:
+    return value.strip().lower() in {"", "unknown", "unknown!", "-1"}
+
+
+def check_endpoint(
+    endpoint: Endpoint,
+    *,
+    allow_unknown_link_details: bool = False,
+) -> dict[str, str]:
     link = read_link(endpoint)
     addresses = read_addresses(endpoint)
     ethtool_output = read_ethtool(endpoint)
+    driver_output = read_ethtool_driver(endpoint)
 
     state = str(link.get("operstate", "UNKNOWN"))
     speed = ethtool_field(ethtool_output, "Speed")
     duplex = ethtool_field(ethtool_output, "Duplex")
     detected = ethtool_field(ethtool_output, "Link detected")
+    driver = ethtool_field(driver_output, "driver")
+    bus_info = ethtool_field(driver_output, "bus-info")
     mtu = str(link.get("mtu", "unknown"))
     ip_ready = address_is_configured(endpoint, addresses)
+    speed_unknown = is_unknown_ethtool_value(speed)
+    duplex_unknown = is_unknown_ethtool_value(duplex)
 
     print(f"[{endpoint.name}]")
     print(f"  namespace: {endpoint.namespace}")
@@ -180,6 +201,8 @@ def check_endpoint(endpoint: Endpoint) -> dict[str, str]:
     print(f"  duplex:    {duplex}")
     print(f"  link:      {detected}")
     print(f"  MTU:       {mtu}")
+    print(f"  driver:    {driver}")
+    print(f"  bus:       {bus_info}")
 
     if not ip_ready:
         raise RuntimeError(f"{endpoint.ip} is not configured on {endpoint.interface}")
@@ -187,9 +210,18 @@ def check_endpoint(endpoint: Endpoint) -> dict[str, str]:
         raise RuntimeError(f"{endpoint.interface} is not operationally UP")
     if detected.lower() != "yes":
         raise RuntimeError(f"link is not detected on {endpoint.interface}")
-    if speed != "10000Mb/s":
+    if speed_unknown and allow_unknown_link_details:
+        print(
+            f"  warning:   {endpoint.interface} does not expose link speed via ethtool; "
+            "10GbE speed cannot be confirmed here"
+        )
+    elif speed != "10000Mb/s":
         raise RuntimeError(f"{endpoint.interface} reports {speed}, expected 10000Mb/s")
-    if duplex.lower() != "full":
+    if duplex_unknown and allow_unknown_link_details:
+        print(
+            f"  warning:   {endpoint.interface} does not expose duplex via ethtool"
+        )
+    elif duplex.lower() != "full":
         raise RuntimeError(f"{endpoint.interface} does not report full duplex")
 
     return {
@@ -202,6 +234,9 @@ def check_endpoint(endpoint: Endpoint) -> dict[str, str]:
         "duplex": duplex,
         "link_detected": detected,
         "mtu": mtu,
+        "driver": driver,
+        "bus_info": bus_info,
+        "speed_verified": "no" if speed_unknown else "yes",
     }
 
 
@@ -228,7 +263,10 @@ def check_environment(args: argparse.Namespace) -> list[dict[str, str]]:
         if endpoint.namespace not in namespaces:
             raise RuntimeError(f"network namespace not found: {endpoint.namespace}")
 
-    rows = [check_endpoint(corundum), check_endpoint(nic)]
+    rows = [
+        check_endpoint(corundum, allow_unknown_link_details=True),
+        check_endpoint(nic),
+    ]
     ping_peer(corundum, nic)
     ping_peer(nic, corundum)
     return rows
