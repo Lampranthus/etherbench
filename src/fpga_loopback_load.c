@@ -38,6 +38,7 @@
  */
 #define ESTIMATED_ETHERNET_OVERHEAD_BYTES 66
 #define DEFAULT_LINK_MBPS 1000
+#define FPGA_LOOPBACK_TARGET_MBPS 1000
 #define SEND_PACE_SLEEP_MARGIN_NS 100000ULL
 
 static uint64_t now_ns(void)
@@ -382,6 +383,17 @@ static int calculate_pace_burst_packets(int payload_size)
     return burst_packets;
 }
 
+static int choose_pacing_mbps(int iface_speed_mbps)
+{
+    int pacing_mbps = FPGA_LOOPBACK_TARGET_MBPS;
+
+    if (iface_speed_mbps > 0 && iface_speed_mbps < pacing_mbps) {
+        pacing_mbps = iface_speed_mbps;
+    }
+
+    return pacing_mbps;
+}
+
 int fpga_loopback_load_test(
     const char *iface_name,
     const char *fpga_ip,
@@ -417,6 +429,7 @@ int fpga_loopback_load_test(
     double effective_elapsed_s;
     int pace_burst_packets = 1;
     int iface_speed_mbps = DEFAULT_LINK_MBPS;
+    int pacing_mbps = FPGA_LOOPBACK_TARGET_MBPS;
 
     if (fpga_ip == NULL || result == NULL) {
         return -1;
@@ -489,19 +502,27 @@ int fpga_loopback_load_test(
     printf("  data port:    %d\n", fpga_data_port);
     printf("  local port:   %d\n", local_port);
 
+    pacing_mbps = choose_pacing_mbps(iface_speed_mbps);
+
     send_interval_ns = estimate_packet_interval_ns(
         payload_size,
-        iface_speed_mbps
+        pacing_mbps
     );
     pace_burst_packets = calculate_pace_burst_packets(payload_size);
 
     if (send_interval_ns > 0) {
         printf(
-            "  pacing:       %.3f us/packet at %d Mb/s, burst=%d packets\n",
+            "  pacing:       %.3f us/packet at %d Mb/s, burst=%d packets",
             (double)send_interval_ns / 1000.0,
-            iface_speed_mbps,
+            pacing_mbps,
             pace_burst_packets
         );
+
+        if (iface_speed_mbps > pacing_mbps) {
+            printf(" (interface reports %d Mb/s)", iface_speed_mbps);
+        }
+
+        printf("\n");
     }
 
     t0 = now_ns();
