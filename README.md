@@ -29,6 +29,7 @@ incluso cuando su interfaz se conecta a un switch a una velocidad superior.
 - [Interpretación de resultados](#interpretación-de-resultados)
 - [Solución de problemas](#solución-de-problemas)
 - [Buenas prácticas de medición](#buenas-prácticas-de-medición)
+- [Desarrollo 10GbE](#desarrollo-10gbe)
 - [Estructura del proyecto](#estructura-del-proyecto)
 
 ## Flujos de prueba
@@ -970,6 +971,14 @@ results/<host>_<interfaz>_sweep_<fecha>_<hora>/
 
 - No mezcles campañas con distinta versión del binario sin documentarlo.
 - Anota cualquier cambio de pacing, payload, cantidad de paquetes o topología.
+
+## Desarrollo 10GbE
+
+La rama `feature/10gbe-corundum` contiene el trabajo experimental para medir un
+enlace de 10 Gb/s entre una interfaz Corundum y una NIC convencional. La
+topología, configuración con namespaces, línea base con `iperf3`, métricas y
+etapas de implementación están documentadas en
+[`docs/10gbe-corundum-plan.md`](docs/10gbe-corundum-plan.md).
 
 ## Estructura del proyecto
 
