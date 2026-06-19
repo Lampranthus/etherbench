@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="760" viewBox="0 0 1120 760">
+<rect width="100%" height="100%" fill="#fbfbf8"/>
+<text x="560.0" y="34" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#222">RTT entre interfaz y FPGA vs. payload</text>
+<rect x="96" y="106" width="988" height="562" fill="#ffffff" stroke="#c9c9c1"/>
+<line x1="96" y1="106.00" x2="1084" y2="106.00" stroke="#a9aba3" stroke-width="1.35"/>
+<text x="86" y="110.00" text-anchor="end" font-family="sans-serif" font-size="13" font-weight="400" fill="#292925">0.1792</text>
+<line x1="96" y1="199.67" x2="1084" y2="199.67" stroke="#a9aba3" stroke-width="1.35"/>
+<text x="86" y="203.67" text-anchor="end" font-family="sans-serif" font-size="13" font-weight="400" fill="#292925">0.1493</text>
+<line x1="96" y1="293.33" x2="1084" y2="293.33" stroke="#a9aba3" stroke-width="1.35"/>
+<text x="86" y="297.33" text-anchor="end" font-family="sans-serif" font-size="13" font-weight="400" fill="#292925">0.1195</text>
+<line x1="96" y1="387.00" x2="1084" y2="387.00" stroke="#a9aba3" stroke-width="1.35"/>
+<text x="86" y="391.00" text-anchor="end" font-family="sans-serif" font-size="13" font-weight="400" fill="#292925">0.0896</text>
+<line x1="96" y1="480.67" x2="1084" y2="480.67" stroke="#a9aba3" stroke-width="1.35"/>
+<text x="86" y="484.67" text-anchor="end" font-family="sans-serif" font-size="13" font-weight="400" fill="#292925">0.0597</text>
+<line x1="96" y1="574.33" x2="1084" y2="574.33" stroke="#a9aba3" stroke-width="1.35"/>
+<text x="86" y="578.33" text-anchor="end" font-family="sans-serif" font-size="13" font-weight="400" fill="#292925">0.0299</text>
+<line x1="96" y1="668.00" x2="1084" y2="668.00" stroke="#4f504b" stroke-width="2.2"/>
+<text x="86" y="672.00" text-anchor="end" font-family="sans-serif" font-size="13" font-weight="600" fill="#292925">0</text>
+<line x1="116.71" y1="106" x2="116.71" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="116.71" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">256</text>
+<line x1="175.87" y1="106" x2="175.87" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="175.87" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">330</text>
+<line x1="235.03" y1="106" x2="235.03" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="235.03" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">404</text>
+<line x1="294.19" y1="106" x2="294.19" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="294.19" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">478</text>
+<line x1="353.35" y1="106" x2="353.35" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="353.35" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">552</text>
+<line x1="412.51" y1="106" x2="412.51" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="412.51" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">626</text>
+<line x1="471.68" y1="106" x2="471.68" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="471.68" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">700</text>
+<line x1="530.84" y1="106" x2="530.84" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="530.84" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">774</text>
+<line x1="590.00" y1="106" x2="590.00" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="590.00" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">848</text>
+<line x1="649.16" y1="106" x2="649.16" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="649.16" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">922</text>
+<line x1="708.32" y1="106" x2="708.32" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="708.32" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">996</text>
+<line x1="767.49" y1="106" x2="767.49" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="767.49" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">1070</text>
+<line x1="826.65" y1="106" x2="826.65" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="826.65" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">1144</text>
+<line x1="885.81" y1="106" x2="885.81" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="885.81" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">1218</text>
+<line x1="944.97" y1="106" x2="944.97" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="944.97" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">1292</text>
+<line x1="1004.13" y1="106" x2="1004.13" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="1004.13" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">1366</text>
+<line x1="1063.29" y1="106" x2="1063.29" y2="668" stroke="#b4b6ae" stroke-width="1.25"/>
+<text x="1063.29" y="690" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">1440</text>
+<text x="590.0" y="736" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="600" fill="#171715">Tamaño del payload (bytes)</text>
+<text transform="translate(24 387.0) rotate(-90)" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="600" fill="#171715">RTT promedio entre interfaz y FPGA (ms)</text>
+<line x1="96.0" y1="64" x2="122.0" y2="64" stroke="#1f77b4" stroke-width="3"/>
+<text x="130.0" y="68" font-family="sans-serif" font-size="13" fill="#222">RTT interfaz-FPGA</text>
+<polyline points="116.71,387.69 175.87,371.66 235.03,351.04 294.19,336.46 353.35,323.99 412.51,291.67 471.68,279.89 530.84,266.14 590.00,254.61 649.16,239.85 708.32,225.58 767.49,212.30 826.65,197.03 885.81,183.37 944.97,171.85 1004.13,160.00 1063.29,148.01" fill="none" stroke="#1f77b4" stroke-width="2.5"/>
+<line x1="116.71" y1="388.62" x2="116.71" y2="386.77" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="111.71" y1="388.62" x2="121.71" y2="388.62" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="111.71" y1="386.77" x2="121.71" y2="386.77" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="116.71" cy="387.69" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="175.87" y1="376.25" x2="175.87" y2="367.08" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="170.87" y1="376.25" x2="180.87" y2="376.25" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="170.87" y1="367.08" x2="180.87" y2="367.08" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="175.87" cy="371.66" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="235.03" y1="353.39" x2="235.03" y2="348.70" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="230.03" y1="353.39" x2="240.03" y2="353.39" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="230.03" y1="348.70" x2="240.03" y2="348.70" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="235.03" cy="351.04" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="294.19" y1="337.78" x2="294.19" y2="335.13" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="289.19" y1="337.78" x2="299.19" y2="337.78" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="289.19" y1="335.13" x2="299.19" y2="335.13" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="294.19" cy="336.46" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="353.35" y1="325.25" x2="353.35" y2="322.73" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="348.35" y1="325.25" x2="358.35" y2="325.25" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="348.35" y1="322.73" x2="358.35" y2="322.73" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="353.35" cy="323.99" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="412.51" y1="292.54" x2="412.51" y2="290.80" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="407.51" y1="292.54" x2="417.51" y2="292.54" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="407.51" y1="290.80" x2="417.51" y2="290.80" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="412.51" cy="291.67" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="471.68" y1="280.82" x2="471.68" y2="278.96" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="466.68" y1="280.82" x2="476.68" y2="280.82" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="466.68" y1="278.96" x2="476.68" y2="278.96" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="471.68" cy="279.89" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="530.84" y1="266.93" x2="530.84" y2="265.35" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="525.84" y1="266.93" x2="535.84" y2="266.93" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="525.84" y1="265.35" x2="535.84" y2="265.35" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="530.84" cy="266.14" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="590.00" y1="255.41" x2="590.00" y2="253.82" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="585.00" y1="255.41" x2="595.00" y2="255.41" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="585.00" y1="253.82" x2="595.00" y2="253.82" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="590.00" cy="254.61" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="649.16" y1="243.33" x2="649.16" y2="236.37" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="644.16" y1="243.33" x2="654.16" y2="243.33" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="644.16" y1="236.37" x2="654.16" y2="236.37" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="649.16" cy="239.85" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="708.32" y1="229.45" x2="708.32" y2="221.72" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="703.32" y1="229.45" x2="713.32" y2="229.45" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="703.32" y1="221.72" x2="713.32" y2="221.72" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="708.32" cy="225.58" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="767.49" y1="214.76" x2="767.49" y2="209.84" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="762.49" y1="214.76" x2="772.49" y2="214.76" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="762.49" y1="209.84" x2="772.49" y2="209.84" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="767.49" cy="212.30" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="826.65" y1="200.83" x2="826.65" y2="193.24" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="821.65" y1="200.83" x2="831.65" y2="200.83" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="821.65" y1="193.24" x2="831.65" y2="193.24" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="826.65" cy="197.03" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="885.81" y1="187.14" x2="885.81" y2="179.60" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="880.81" y1="187.14" x2="890.81" y2="187.14" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="880.81" y1="179.60" x2="890.81" y2="179.60" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="885.81" cy="183.37" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="944.97" y1="175.78" x2="944.97" y2="167.93" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="939.97" y1="175.78" x2="949.97" y2="175.78" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="939.97" y1="167.93" x2="949.97" y2="167.93" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="944.97" cy="171.85" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="1004.13" y1="162.02" x2="1004.13" y2="157.99" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="999.13" y1="162.02" x2="1009.13" y2="162.02" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="999.13" y1="157.99" x2="1009.13" y2="157.99" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="1004.13" cy="160.00" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+<line x1="1063.29" y1="148.40" x2="1063.29" y2="147.63" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="1058.29" y1="148.40" x2="1068.29" y2="148.40" stroke="#1f77b4" stroke-width="1.3"/>
+<line x1="1058.29" y1="147.63" x2="1068.29" y2="147.63" stroke="#1f77b4" stroke-width="1.3"/>
+<circle cx="1063.29" cy="148.01" r="4" fill="#1f77b4" stroke="#ffffff" stroke-width="1"/>
+</svg>

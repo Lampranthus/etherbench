@@ -31,6 +31,16 @@ DEFAULT_LOCAL_PORT = 9999
 DEFAULT_MODE = "random"
 DEFAULT_LINK_MBPS = 1000.0
 ETHERNET_OVERHEAD_BYTES = 66
+COMPARISON_COLORS = [
+    "#1f77b4",
+    "#d62728",
+    "#2ca02c",
+    "#9467bd",
+    "#ff7f0e",
+    "#17becf",
+    "#8c564b",
+    "#e377c2",
+]
 
 
 @dataclass(frozen=True)
@@ -413,19 +423,54 @@ def svg_escape(text: str) -> str:
     )
 
 
-def nice_range(values: list[float]) -> tuple[float, float]:
+def display_name(name: str) -> str:
+    return " ".join(name.replace("_", " ").split())
+
+
+def nice_range(values: list[float], include_zero: bool = False) -> tuple[float, float]:
     if not values:
         return 0.0, 1.0
 
     lo = min(values)
     hi = max(values)
 
+    if include_zero:
+        lo = min(lo, 0.0)
+        hi = max(hi, 0.0)
+
     if math.isclose(lo, hi):
         padding = abs(lo) * 0.1 if lo != 0.0 else 1.0
         return lo - padding, hi + padding
 
     padding = (hi - lo) * 0.08
+
+    if include_zero and lo == 0.0:
+        return 0.0, hi + padding
+    if include_zero and hi == 0.0:
+        return lo - padding, 0.0
+
     return lo - padding, hi + padding
+
+
+def format_axis_value(value: float) -> str:
+    absolute = abs(value)
+
+    for scale, suffix in ((1_000_000_000.0, "G"), (1_000_000.0, "M"), (1_000.0, "K")):
+        if absolute >= scale:
+            scaled = value / scale
+            decimals = 0 if abs(scaled) >= 100 else 1 if abs(scaled) >= 10 else 2
+            return f"{scaled:.{decimals}f}".rstrip("0").rstrip(".") + suffix
+
+    if absolute >= 100:
+        return f"{value:.0f}"
+    if absolute >= 10:
+        return f"{value:.1f}".rstrip("0").rstrip(".")
+    if absolute >= 1:
+        return f"{value:.2f}".rstrip("0").rstrip(".")
+    if absolute == 0:
+        return "0"
+
+    return f"{value:.4f}".rstrip("0").rstrip(".")
 
 
 def draw_plot(
@@ -438,16 +483,59 @@ def draw_plot(
     series: list[SeriesStyle],
 ) -> None:
     width = 1120
-    height = 680
+    height = 760
     left = 96
     right = 94 if right_label else 36
-    top = 62
-    bottom = 86
+    bottom = 92
+
+    available_legend_width = width - left - right
+    legend_x = left
+    legend_y = 64
+
+    direction_labels = ("Interfaz a FPGA", "FPGA a interfaz")
+    direction_entries: list[tuple[SeriesStyle, str, str]] = []
+    other_legend_items: list[SeriesStyle] = []
+
+    for item in series:
+        matched = False
+        for direction_label in direction_labels:
+            suffix = f": {direction_label}"
+            if item.label.endswith(suffix):
+                direction_entries.append((item, item.label.removesuffix(suffix), direction_label))
+                matched = True
+                break
+        if not matched:
+            other_legend_items.append(item)
+
+    legend_devices = list(dict.fromkeys(device for _, device, _ in direction_entries))
+    use_direction_table = len(legend_devices) > 1
+
+    if use_direction_table:
+        legend_rows = 1 + len(legend_devices) + (1 if other_legend_items else 0)
+        legend_columns = 1
+        legend_column_width = available_legend_width
+    else:
+        longest_legend_width = max(len(item.label) for item in series) * 7 + 54
+        legend_columns = max(
+            1,
+            min(3, len(series), int(available_legend_width / longest_legend_width)),
+        )
+        legend_rows = math.ceil(len(series) / legend_columns)
+        legend_column_width = available_legend_width / legend_columns
+
+    top = legend_y + legend_rows * 24 + 18
+
     plot_w = width - left - right
     plot_h = height - top - bottom
 
-    payloads = [float(row["payload_size"]) for row in rows]
-    x_min, x_max = nice_range(payloads)
+    payloads = sorted({float(row["payload_size"]) for row in rows})
+    if len(payloads) > 1:
+        minimum_step = min(b - a for a, b in zip(payloads, payloads[1:]))
+        x_padding = minimum_step * 0.35
+    else:
+        x_padding = max(payloads[0] * 0.05, 1.0)
+    x_min = payloads[0] - x_padding
+    x_max = payloads[-1] + x_padding
 
     left_values: list[float] = []
     right_values: list[float] = []
@@ -465,8 +553,8 @@ def draw_plot(
             target = left_values if item.y_axis == "left" else right_values
             target.extend([value - err, value + err])
 
-    left_min, left_max = nice_range(left_values)
-    right_min, right_max = nice_range(right_values)
+    left_min, left_max = nice_range(left_values, include_zero=True)
+    right_min, right_max = nice_range(right_values, include_zero=True)
 
     def sx(value: float) -> float:
         return left + (value - x_min) / (x_max - x_min) * plot_w
@@ -484,35 +572,81 @@ def draw_plot(
         f'<rect x="{left}" y="{top}" width="{plot_w}" height="{plot_h}" fill="#ffffff" stroke="#c9c9c1"/>',
     ]
 
-    for i in range(6):
-        t = i / 5
+    y_tick_count = 7
+    for i in range(y_tick_count):
+        t = i / (y_tick_count - 1)
         y = top + t * plot_h
-        x = left + t * plot_w
         left_tick = left_max - t * (left_max - left_min)
-        x_tick = x_min + t * (x_max - x_min)
-        lines.append(f'<line x1="{left}" y1="{y:.2f}" x2="{left + plot_w}" y2="{y:.2f}" stroke="#e8e8df"/>')
-        lines.append(f'<text x="{left - 10}" y="{y + 4:.2f}" text-anchor="end" font-family="sans-serif" font-size="12" fill="#4a4a45">{left_tick:.3g}</text>')
-        lines.append(f'<line x1="{x:.2f}" y1="{top}" x2="{x:.2f}" y2="{top + plot_h}" stroke="#f0f0e8"/>')
-        lines.append(f'<text x="{x:.2f}" y="{top + plot_h + 24}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#4a4a45">{x_tick:.0f}</text>')
+        is_zero_tick = math.isclose(left_tick, 0.0, abs_tol=1e-12)
+        grid_color = "#4f504b" if is_zero_tick else "#a9aba3"
+        grid_width = "2.2" if is_zero_tick else "1.35"
+        tick_weight = "600" if is_zero_tick else "400"
+        lines.append(f'<line x1="{left}" y1="{y:.2f}" x2="{left + plot_w}" y2="{y:.2f}" stroke="{grid_color}" stroke-width="{grid_width}"/>')
+        lines.append(f'<text x="{left - 10}" y="{y + 4:.2f}" text-anchor="end" font-family="sans-serif" font-size="13" font-weight="{tick_weight}" fill="#292925">{format_axis_value(left_tick)}</text>')
 
         if right_label:
             right_tick = right_max - t * (right_max - right_min)
-            lines.append(f'<text x="{left + plot_w + 12}" y="{y + 4:.2f}" text-anchor="start" font-family="sans-serif" font-size="12" fill="#4a4a45">{right_tick:.3g}</text>')
+            lines.append(f'<text x="{left + plot_w + 12}" y="{y + 4:.2f}" text-anchor="start" font-family="sans-serif" font-size="13" fill="#292925">{format_axis_value(right_tick)}</text>')
 
-    lines.append(f'<text x="{left + plot_w / 2}" y="{height - 24}" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#222">{svg_escape(x_label)}</text>')
-    lines.append(f'<text transform="translate(26 {top + plot_h / 2}) rotate(-90)" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#222">{svg_escape(left_label)}</text>')
+    if left_min < 0.0 < left_max:
+        zero_y = sy_left(0.0)
+        lines.append(f'<line x1="{left}" y1="{zero_y:.2f}" x2="{left + plot_w}" y2="{zero_y:.2f}" stroke="#676761" stroke-width="1.8"/>')
+        lines.append(f'<text x="{left - 10}" y="{zero_y + 4:.2f}" text-anchor="end" font-family="sans-serif" font-size="12" font-weight="600" fill="#222">0</text>')
+
+    rotate_x_labels = len(payloads) > 18
+    for payload in payloads:
+        x = sx(payload)
+        lines.append(f'<line x1="{x:.2f}" y1="{top}" x2="{x:.2f}" y2="{top + plot_h}" stroke="#b4b6ae" stroke-width="1.25"/>')
+        if rotate_x_labels:
+            lines.append(f'<text transform="translate({x:.2f} {top + plot_h + 20}) rotate(-45)" text-anchor="end" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">{payload:.0f}</text>')
+        else:
+            lines.append(f'<text x="{x:.2f}" y="{top + plot_h + 22}" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="500" fill="#292925">{payload:.0f}</text>')
+
+    lines.append(f'<text x="{left + plot_w / 2}" y="{height - 24}" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="600" fill="#171715">{svg_escape(x_label)}</text>')
+    lines.append(f'<text transform="translate(24 {top + plot_h / 2}) rotate(-90)" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="600" fill="#171715">{svg_escape(left_label)}</text>')
 
     if right_label:
-        lines.append(f'<text transform="translate({width - 24} {top + plot_h / 2}) rotate(90)" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#222">{svg_escape(right_label)}</text>')
+        lines.append(f'<text transform="translate({width - 24} {top + plot_h / 2}) rotate(90)" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="600" fill="#171715">{svg_escape(right_label)}</text>')
 
-    legend_x = left + 16
-    legend_y = top + 20
+    if use_direction_table:
+        device_column_x = legend_x
+        to_fpga_column_x = legend_x + 430
+        from_fpga_column_x = legend_x + 700
+        header_y = legend_y
+        lines.append(f'<text x="{device_column_x}" y="{header_y + 4}" font-family="sans-serif" font-size="13" font-weight="600" fill="#222">Interfaz</text>')
+        lines.append(f'<text x="{to_fpga_column_x}" y="{header_y + 4}" font-family="sans-serif" font-size="13" font-weight="600" fill="#222">Interfaz a FPGA</text>')
+        lines.append(f'<text x="{from_fpga_column_x}" y="{header_y + 4}" font-family="sans-serif" font-size="13" font-weight="600" fill="#222">FPGA a interfaz</text>')
+        lines.append(f'<line x1="{legend_x}" y1="{header_y + 10}" x2="{legend_x + available_legend_width}" y2="{header_y + 10}" stroke="#b4b4ad"/>')
 
-    for idx, item in enumerate(series):
-        y = legend_y + idx * 22
-        dash = ' stroke-dasharray="8 6"' if item.dashed else ""
-        lines.append(f'<line x1="{legend_x}" y1="{y}" x2="{legend_x + 26}" y2="{y}" stroke="{item.color}" stroke-width="3"{dash}/>')
-        lines.append(f'<text x="{legend_x + 34}" y="{y + 4}" font-family="sans-serif" font-size="13" fill="#222">{svg_escape(item.label)}</text>')
+        direction_lookup = {
+            (device, direction): item
+            for item, device, direction in direction_entries
+        }
+        for row_index, device in enumerate(legend_devices, start=1):
+            y = legend_y + row_index * 24
+            lines.append(f'<text x="{device_column_x}" y="{y + 4}" font-family="sans-serif" font-size="13" fill="#222">{svg_escape(device)}</text>')
+            for direction, column_x in zip(direction_labels, (to_fpga_column_x, from_fpga_column_x)):
+                item = direction_lookup.get((device, direction))
+                if item is None:
+                    continue
+                dash = ' stroke-dasharray="8 6"' if item.dashed else ""
+                lines.append(f'<line x1="{column_x + 42}" y1="{y}" x2="{column_x + 104}" y2="{y}" stroke="{item.color}" stroke-width="3"{dash}/>')
+
+        for offset, item in enumerate(other_legend_items, start=1):
+            y = legend_y + (len(legend_devices) + offset) * 24
+            dash = ' stroke-dasharray="8 6"' if item.dashed else ""
+            lines.append(f'<text x="{device_column_x}" y="{y + 4}" font-family="sans-serif" font-size="13" fill="#222">{svg_escape(item.label)}</text>')
+            lines.append(f'<line x1="{to_fpga_column_x + 42}" y1="{y}" x2="{to_fpga_column_x + 104}" y2="{y}" stroke="{item.color}" stroke-width="3"{dash}/>')
+            lines.append(f'<line x1="{from_fpga_column_x + 42}" y1="{y}" x2="{from_fpga_column_x + 104}" y2="{y}" stroke="{item.color}" stroke-width="3"{dash}/>')
+    else:
+        for idx, item in enumerate(series):
+            column = idx % legend_columns
+            row_index = idx // legend_columns
+            x = legend_x + column * legend_column_width
+            y = legend_y + row_index * 24
+            dash = ' stroke-dasharray="8 6"' if item.dashed else ""
+            lines.append(f'<line x1="{x}" y1="{y}" x2="{x + 26}" y2="{y}" stroke="{item.color}" stroke-width="3"{dash}/>')
+            lines.append(f'<text x="{x + 34}" y="{y + 4}" font-family="sans-serif" font-size="13" fill="#222">{svg_escape(item.label)}</text>')
 
     for item in series:
         coords = []
@@ -583,6 +717,257 @@ def merge_pps_rows(
     ]
 
 
+def merge_direction_metric_rows(
+    loopback: list[dict[str, str]],
+    tx: list[dict[str, str]],
+    metric: str,
+) -> list[dict[str, str]]:
+    merged: dict[int, dict[str, str]] = {}
+    std_metric = metric[:-5] + "_std" if metric.endswith("_mean") else None
+
+    for direction, source in (("to_fpga", loopback), ("from_fpga", tx)):
+        for row in source:
+            if not row.get(metric):
+                continue
+
+            payload = int(row["payload_size"])
+            out = merged.setdefault(payload, {"payload_size": str(payload)})
+            out[f"{direction}_mean"] = row[metric]
+            if std_metric and row.get(std_metric):
+                out[f"{direction}_std"] = row[std_metric]
+
+    return [row for _, row in sorted(merged.items())]
+
+
+def parse_comparison_inputs(values: list[str]) -> list[tuple[str, Path]]:
+    inputs: list[tuple[str, Path]] = []
+    labels: set[str] = set()
+
+    for value in values:
+        if "=" not in value:
+            raise ValueError(f"comparison input must use LABEL=DIR: {value}")
+
+        label, directory = value.split("=", 1)
+        label = label.strip()
+        path = Path(directory).expanduser().resolve()
+
+        if not label:
+            raise ValueError(f"comparison input has an empty label: {value}")
+        if label in labels:
+            raise ValueError(f"duplicate comparison label: {label}")
+        if not path.is_dir():
+            raise FileNotFoundError(f"comparison directory not found: {path}")
+
+        labels.add(label)
+        inputs.append((label, path))
+
+    return inputs
+
+
+def merge_comparison_metric(
+    inputs: list[tuple[str, Path]],
+    summary_name: str,
+    metric: str,
+) -> tuple[list[dict[str, str]], list[SeriesStyle]]:
+    merged: dict[int, dict[str, str]] = {}
+    series: list[SeriesStyle] = []
+    std_metric = metric[:-5] + "_std" if metric.endswith("_mean") else None
+
+    for index, (label, directory) in enumerate(inputs):
+        key = f"device_{index}_mean"
+        std_key = f"device_{index}_std"
+        found = False
+
+        for row in load_summary(directory / summary_name):
+            if metric not in row or not row[metric]:
+                continue
+
+            payload = int(row["payload_size"])
+            out = merged.setdefault(payload, {"payload_size": str(payload)})
+            out[key] = row[metric]
+            if std_metric and row.get(std_metric):
+                out[std_key] = row[std_metric]
+            found = True
+
+        if found:
+            series.append(
+                SeriesStyle(
+                    key,
+                    display_name(label),
+                    COMPARISON_COLORS[index % len(COMPARISON_COLORS)],
+                    "left",
+                )
+            )
+
+    return [row for _, row in sorted(merged.items())], series
+
+
+def merge_comparison_pps(
+    inputs: list[tuple[str, Path]],
+) -> tuple[list[dict[str, str]], list[SeriesStyle]]:
+    merged: dict[int, dict[str, str]] = {}
+    series: list[SeriesStyle] = []
+
+    for index, (label, directory) in enumerate(inputs):
+        color = COMPARISON_COLORS[index % len(COMPARISON_COLORS)]
+
+        for test, summary_name, direction_label, dashed in (
+            ("loopback", "loopback_summary.csv", "Interfaz a FPGA", False),
+            ("tx", "tx_summary.csv", "FPGA a interfaz", True),
+        ):
+            key = f"device_{index}_{test}_mean"
+            std_key = f"device_{index}_{test}_std"
+            found = False
+
+            for row in load_summary(directory / summary_name):
+                if not row.get("pps_mean"):
+                    continue
+
+                payload = int(row["payload_size"])
+                out = merged.setdefault(payload, {"payload_size": str(payload)})
+                out[key] = row["pps_mean"]
+                if row.get("pps_std"):
+                    out[std_key] = row["pps_std"]
+                found = True
+
+            if found:
+                series.append(
+                    SeriesStyle(
+                        key,
+                        f"{display_name(label)}: {direction_label}",
+                        color,
+                        "left",
+                        dashed=dashed,
+                    )
+                )
+
+    rows = [row for _, row in sorted(merged.items())]
+    for row in rows:
+        row["theoretical_pps"] = f'{theoretical_pps(int(row["payload_size"])):.9f}'
+
+    if rows:
+        series.append(SeriesStyle("theoretical_pps", "Límite teórico", "#111111", "left", dashed=True))
+
+    return rows, series
+
+
+def merge_comparison_direction_metric(
+    inputs: list[tuple[str, Path]],
+    metric: str,
+) -> tuple[list[dict[str, str]], list[SeriesStyle]]:
+    merged: dict[int, dict[str, str]] = {}
+    series: list[SeriesStyle] = []
+    std_metric = metric[:-5] + "_std" if metric.endswith("_mean") else None
+
+    for index, (label, directory) in enumerate(inputs):
+        color = COMPARISON_COLORS[index % len(COMPARISON_COLORS)]
+
+        for direction, summary_name, direction_label, dashed in (
+            ("to_fpga", "loopback_summary.csv", "Interfaz a FPGA", False),
+            ("from_fpga", "tx_summary.csv", "FPGA a interfaz", True),
+        ):
+            key = f"device_{index}_{direction}_mean"
+            std_key = f"device_{index}_{direction}_std"
+            found = False
+
+            for row in load_summary(directory / summary_name):
+                if not row.get(metric):
+                    continue
+
+                payload = int(row["payload_size"])
+                out = merged.setdefault(payload, {"payload_size": str(payload)})
+                out[key] = row[metric]
+                if std_metric and row.get(std_metric):
+                    out[std_key] = row[std_metric]
+                found = True
+
+            if found:
+                series.append(
+                    SeriesStyle(
+                        key,
+                        f"{display_name(label)}: {direction_label}",
+                        color,
+                        "left",
+                        dashed=dashed,
+                    )
+                )
+
+    return [row for _, row in sorted(merged.items())], series
+
+
+def compare(output_dir: Path, inputs: list[tuple[str, Path]]) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    rtt_rows, rtt_series = merge_comparison_metric(inputs, "rtt_summary.csv", "avg_ms_mean")
+    if rtt_rows and rtt_series:
+        draw_plot(
+            output_dir / "comparison_rtt_payload_sweep.svg",
+            "RTT entre interfaz y FPGA vs. payload",
+            "Tamaño del payload (bytes)",
+            "RTT promedio entre interfaz y FPGA (ms)",
+            None,
+            rtt_rows,
+            rtt_series,
+        )
+
+    goodput_rows, goodput_series = merge_comparison_direction_metric(
+        inputs,
+        "goodput_mbps_mean",
+    )
+    if goodput_rows and goodput_series:
+        for row in goodput_rows:
+            row["theoretical_goodput_mbps"] = (
+                f'{theoretical_goodput_mbps(int(row["payload_size"])):.9f}'
+            )
+        goodput_series.append(
+            SeriesStyle(
+                "theoretical_goodput_mbps",
+                "Límite teórico",
+                "#111111",
+                "left",
+                dashed=True,
+            )
+        )
+        draw_plot(
+            output_dir / "comparison_goodput_payload_sweep.svg",
+            "Comparación de goodput vs. payload",
+            "Tamaño del payload (bytes)",
+            "Goodput payload (Mbps)",
+            None,
+            goodput_rows,
+            goodput_series,
+        )
+
+    loss_rows, loss_series = merge_comparison_direction_metric(inputs, "lost_pct_mean")
+    if loss_rows and loss_series:
+        draw_plot(
+            output_dir / "comparison_loss_payload_sweep.svg",
+            "Comparación de pérdidas vs. payload",
+            "Tamaño del payload (bytes)",
+            "Pérdida (%)",
+            None,
+            loss_rows,
+            loss_series,
+        )
+
+    pps_rows, pps_series = merge_comparison_pps(inputs)
+    if pps_rows and pps_series:
+        draw_plot(
+            output_dir / "comparison_pps_payload_sweep.svg",
+            "Comparación de PPS vs. payload",
+            "Tamaño del payload (bytes)",
+            "Paquetes por segundo",
+            None,
+            pps_rows,
+            pps_series,
+        )
+
+    with (output_dir / "comparison_inputs.csv").open("w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["label", "result_directory"])
+        writer.writerows((label, str(directory)) for label, directory in inputs)
+
+
 def plot(output_dir: Path) -> None:
     rtt = load_summary(output_dir / "rtt_summary.csv")
     loopback = load_summary(output_dir / "loopback_summary.csv")
@@ -591,65 +976,48 @@ def plot(output_dir: Path) -> None:
     if rtt:
         draw_plot(
             output_dir / "rtt_payload_sweep.svg",
-            "RTT vs payload",
-            "Payload size (bytes)",
-            "RTT promedio (ms)",
+            "RTT entre interfaz y FPGA vs. payload",
+            "Tamaño del payload (bytes)",
+            "RTT promedio entre interfaz y FPGA (ms)",
             None,
             rtt,
             [
-                SeriesStyle("avg_ms_mean", "RTT promedio", "#1f77b4", "left"),
+                SeriesStyle("avg_ms_mean", "RTT interfaz-FPGA", "#1f77b4", "left"),
             ],
         )
 
-    if loopback:
+    goodput_rows = merge_direction_metric_rows(loopback, tx, "goodput_mbps_mean")
+    if goodput_rows:
+        for row in goodput_rows:
+            row["theoretical_goodput_mbps"] = (
+                f'{theoretical_goodput_mbps(int(row["payload_size"])):.9f}'
+            )
         draw_plot(
-            output_dir / "loopback_goodput_payload_sweep.svg",
-            "Loopback: goodput vs payload",
-            "Payload size (bytes)",
+            output_dir / "goodput_payload_sweep.svg",
+            "Goodput vs. payload",
+            "Tamaño del payload (bytes)",
             "Goodput payload (Mbps)",
             None,
-            loopback,
+            goodput_rows,
             [
-                SeriesStyle("goodput_mbps_mean", "Goodput", "#2ca02c", "left"),
-                SeriesStyle("theoretical_goodput_mbps", "Teorico", "#111111", "left", dashed=True),
+                SeriesStyle("to_fpga_mean", "Interfaz a FPGA", "#2ca02c", "left"),
+                SeriesStyle("from_fpga_mean", "FPGA a interfaz", "#9467bd", "left", dashed=True),
+                SeriesStyle("theoretical_goodput_mbps", "Límite teórico", "#111111", "left", dashed=True),
             ],
         )
 
+    loss_rows = merge_direction_metric_rows(loopback, tx, "lost_pct_mean")
+    if loss_rows:
         draw_plot(
-            output_dir / "loopback_loss_payload_sweep.svg",
-            "Loopback: perdida vs payload",
-            "Payload size (bytes)",
-            "Perdida (%)",
+            output_dir / "loss_payload_sweep.svg",
+            "Pérdida vs. payload",
+            "Tamaño del payload (bytes)",
+            "Pérdida (%)",
             None,
-            loopback,
+            loss_rows,
             [
-                SeriesStyle("lost_pct_mean", "Perdida", "#d62728", "left"),
-            ],
-        )
-
-    if tx:
-        draw_plot(
-            output_dir / "tx_goodput_payload_sweep.svg",
-            "Transmision FPGA: goodput vs payload",
-            "Payload size (bytes)",
-            "Goodput payload (Mbps)",
-            None,
-            tx,
-            [
-                SeriesStyle("goodput_mbps_mean", "Goodput", "#9467bd", "left"),
-                SeriesStyle("theoretical_goodput_mbps", "Teorico", "#111111", "left", dashed=True),
-            ],
-        )
-
-        draw_plot(
-            output_dir / "tx_loss_payload_sweep.svg",
-            "Transmision FPGA: perdida vs payload",
-            "Payload size (bytes)",
-            "Perdida (%)",
-            None,
-            tx,
-            [
-                SeriesStyle("lost_pct_mean", "Perdida", "#d62728", "left"),
+                SeriesStyle("to_fpga_mean", "Interfaz a FPGA", "#2ca02c", "left"),
+                SeriesStyle("from_fpga_mean", "FPGA a interfaz", "#9467bd", "left", dashed=True),
             ],
         )
 
@@ -657,19 +1025,19 @@ def plot(output_dir: Path) -> None:
     pps_series: list[SeriesStyle] = []
 
     if pps_rows and any("loopback_pps_mean" in row for row in pps_rows):
-        pps_series.append(SeriesStyle("loopback_pps_mean", "Loopback PPS", "#2ca02c", "left"))
+        pps_series.append(SeriesStyle("loopback_pps_mean", "Interfaz a FPGA", "#2ca02c", "left"))
 
     if pps_rows and any("tx_pps_mean" in row for row in pps_rows):
-        pps_series.append(SeriesStyle("tx_pps_mean", "TX PPS", "#9467bd", "left"))
+        pps_series.append(SeriesStyle("tx_pps_mean", "FPGA a interfaz", "#9467bd", "left", dashed=True))
 
     if pps_rows:
-        pps_series.append(SeriesStyle("theoretical_pps", "Teorico", "#111111", "left", dashed=True))
+        pps_series.append(SeriesStyle("theoretical_pps", "Límite teórico", "#111111", "left", dashed=True))
 
     if pps_rows and pps_series:
         draw_plot(
             output_dir / "pps_payload_sweep.svg",
-            "PPS vs payload",
-            "Payload size (bytes)",
+            "PPS vs. payload",
+            "Tamaño del payload (bytes)",
             "Paquetes por segundo",
             None,
             pps_rows,
@@ -718,6 +1086,16 @@ def build_parser() -> argparse.ArgumentParser:
     plot_parser = subparsers.add_parser("plot", help="rebuild SVG plots from summary CSVs")
     add_common_args(plot_parser)
 
+    compare_parser = subparsers.add_parser("compare", help="compare summary plots from multiple devices")
+    compare_parser.add_argument(
+        "--input",
+        action="append",
+        required=True,
+        metavar="LABEL=DIR",
+        help="device label and sweep result directory; repeat for each device",
+    )
+    compare_parser.add_argument("--output-dir", type=Path, required=True)
+
     return parser
 
 
@@ -729,6 +1107,12 @@ def main() -> int:
         if args.command == "run":
             output_dir = run_sweep(args)
             print(f"\nResults written to: {output_dir}")
+            return 0
+
+        if args.command == "compare":
+            inputs = parse_comparison_inputs(args.input)
+            compare(args.output_dir, inputs)
+            print(f"Comparison plots written to: {args.output_dir}")
             return 0
 
         if args.output_dir is None:
