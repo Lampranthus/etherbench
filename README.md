@@ -1002,11 +1002,14 @@ sudo scripts/etherbench_10gbe.py sweep \
 ```
 
 Las cuatro gráficas reúnen ambas direcciones. La pérdida UDP se toma de
-`lost_percent` y `lost_packets` reportados por el servidor `iperf3` receptor.
+`lost_percent` y `lost_packets` del resumen receptor de `iperf3`, ya aparezca
+en el JSON del servidor o sea devuelto dentro del JSON del cliente.
 RTT se obtiene con `ping`, porque `iperf3` no expone esa métrica. Si aparecen
 pérdidas altas con `--load-factor 1.0`, repetir con `0.80`, `0.90` y `0.95`
 permite distinguir el punto de saturación del enlace o del procesamiento de
-paquetes.
+paquetes. El pacing UDP usa intervalos de `100` µs por defecto; se puede probar
+una granularidad más fina con `--pacing-timer 50` o `10`, a cambio de mayor uso
+de CPU.
 
 ## Estructura del proyecto
 

@@ -176,8 +176,9 @@ retransmisiones se toman del cliente emisor porque es quien las reporta.
 
 El porcentaje UDP corresponde a `lost_percent` de `iperf3`: el receptor usa
 los números de secuencia para comparar datagramas esperados y recibidos. El
-CSV conserva también `lost_packets` para poder auditar el porcentaje. La
-prueba RTT sí usa `ping`, ya que `iperf3` no proporciona RTT por payload.
+CSV conserva también `lost_packets` y `metrics_source` para poder auditar el
+porcentaje y el JSON utilizado. La prueba RTT sí usa `ping`, ya que `iperf3`
+no proporciona RTT por payload.
 - Pérdida y jitter UDP.
 - Retransmisiones TCP.
 - Utilización de CPU reportada por `iperf3`.
@@ -298,6 +299,13 @@ límite del enlace. Una pérdida cercana al 10% con `1.0` puede ser real si el
 emisor, receptor o pacing de `iperf3` no sostiene la tasa de paquetes. Conviene
 repetir con `0.80`, `0.90` y `0.95` para localizar el punto de saturación. El
 sweep completo usa UDP; TCP permanece disponible en `run`.
+
+`--pacing-timer` controla, en microsegundos, la frecuencia del pacing interno
+de `iperf3`. Etherbench usa `100` por defecto en lugar de los `1000` µs
+habituales para suavizar las ráfagas UDP a 10 Gb/s. Un valor menor produce
+ráfagas más pequeñas, pero consume más CPU. Para diagnosticar pérdidas puede
+compararse `100`, `50` y `10`, vigilando que el emisor todavía alcance la tasa
+solicitada.
 
 Archivos principales:
 

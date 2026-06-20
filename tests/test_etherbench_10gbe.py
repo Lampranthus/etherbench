@@ -64,6 +64,30 @@ class IperfResultTests(unittest.TestCase):
         self.assertEqual(result["jitter_ms"], 0.032)
         self.assertEqual(result["packets"], 100000)
 
+    def test_parse_udp_prefers_receiver_summary(self):
+        data = {
+            "end": {
+                "sum": {
+                    "bits_per_second": 0,
+                    "packets": 0,
+                    "sender": True,
+                },
+                "sum_received": {
+                    "bits_per_second": 8.1e9,
+                    "lost_percent": 1.5,
+                    "lost_packets": 1500,
+                    "packets": 98500,
+                    "sender": False,
+                },
+            }
+        }
+
+        result = MODULE.parse_iperf_result(data, "udp")
+
+        self.assertEqual(result["throughput_bps"], 8.1e9)
+        self.assertEqual(result["lost_percent"], 1.5)
+        self.assertEqual(result["lost_packets"], 1500)
+
     def test_parse_ping_result(self):
         output = """
 10 packets transmitted, 9 received, 10% packet loss, time 12ms
@@ -170,6 +194,7 @@ class CommandTests(unittest.TestCase):
             streams=4,
             udp_bandwidth="9G",
             udp_payload=1440,
+            pacing_timer=100,
         )
 
     def test_test_cases_run_in_both_directions(self):
@@ -206,6 +231,7 @@ class CommandTests(unittest.TestCase):
         self.assertIn("192.168.1.100", command)
         self.assertIn("-u", command)
         self.assertIn("1440", command)
+        self.assertIn("--pacing-timer", command)
 
     def test_corundum_to_nic_udp_command(self):
         test = MODULE.TestCase(

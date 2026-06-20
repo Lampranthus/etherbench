@@ -42,6 +42,7 @@ DEFAULT_PAYLOAD_MAX = 1440
 DEFAULT_PAYLOAD_STEP = 74
 DEFAULT_RTT_PACKETS = 1000
 DEFAULT_PING_INTERVAL = 0.001
+DEFAULT_PACING_TIMER_US = 100
 DEFAULT_LINK_MBPS = 10_000.0
 ETHERNET_OVERHEAD_BYTES = 66
 
@@ -354,6 +355,8 @@ def iperf_client_command(
                 args.udp_bandwidth,
                 "-l",
                 str(args.udp_payload),
+                "--pacing-timer",
+                str(args.pacing_timer),
             ]
         )
 
@@ -372,12 +375,32 @@ def number(data: dict[str, Any], *path: str, default: float = 0.0) -> float:
         return default
 
 
+def udp_receiver_summary(end: dict[str, Any]) -> dict[str, Any]:
+    received = end.get("sum_received")
+    if isinstance(received, dict) and "bits_per_second" in received:
+        return received
+
+    summary = end.get("sum")
+    if isinstance(summary, dict) and summary.get("sender") is False:
+        return summary
+
+    for stream in end.get("streams", []):
+        udp = stream.get("udp", {}) if isinstance(stream, dict) else {}
+        if isinstance(udp, dict) and udp.get("sender") is False:
+            return udp
+
+    # iperf3 versions before sum_received use end.sum for UDP receiver data.
+    if isinstance(summary, dict):
+        return summary
+    return {}
+
+
 def parse_iperf_result(data: dict[str, Any], protocol: str) -> dict[str, float]:
     end = data.get("end", {})
     cpu = end.get("cpu_utilization_percent", {})
 
     if protocol == "udp":
-        summary = end.get("sum", {})
+        summary = udp_receiver_summary(end)
         return {
             "throughput_bps": number(summary, "bits_per_second"),
             "elapsed_s": number(summary, "seconds"),
@@ -435,7 +458,9 @@ def run_test_case(
             "omit_s": args.omit,
             "streams": args.streams if test.protocol == "tcp" else 1,
             "udp_bandwidth": args.udp_bandwidth if test.protocol == "udp" else "",
+            "pacing_timer_us": args.pacing_timer if test.protocol == "udp" else "",
             "payload_size": args.udp_payload if test.protocol == "udp" else "",
+            "metrics_source": "",
             "throughput_bps": "",
             "elapsed_s": "",
             "lost_percent": "",
@@ -496,8 +521,19 @@ def run_test_case(
     # The destination is the authoritative source for received throughput and
     # UDP loss. TCP retransmissions are only reported by the sending client.
     metrics = parse_iperf_result(server_data, test.protocol)
+    metrics_source = "server_json"
+    client_metrics = parse_iperf_result(client_data, test.protocol)
+    if test.protocol == "udp" and metrics["throughput_bps"] <= 0.0:
+        if client_metrics["throughput_bps"] <= 0.0:
+            raise RuntimeError(
+                "iperf3 did not report UDP receiver throughput in either JSON; "
+                f"inspect {raw_dir / f'{stem}_server.json'} and "
+                f"{raw_dir / f'{stem}_client.json'}"
+            )
+        metrics = client_metrics
+        metrics_source = "client_json_receiver_summary"
+        print("  warning: receiver summary was recovered from client JSON")
     if test.protocol == "tcp":
-        client_metrics = parse_iperf_result(client_data, test.protocol)
         metrics["retransmits"] = client_metrics["retransmits"]
 
     return {
@@ -511,7 +547,9 @@ def run_test_case(
         "omit_s": args.omit,
         "streams": args.streams if test.protocol == "tcp" else 1,
         "udp_bandwidth": args.udp_bandwidth if test.protocol == "udp" else "",
+        "pacing_timer_us": args.pacing_timer if test.protocol == "udp" else "",
         "payload_size": args.udp_payload if test.protocol == "udp" else "",
+        "metrics_source": metrics_source,
         **metrics,
         "returncode": client.returncode,
     }
@@ -1002,6 +1040,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--streams", type=int, default=DEFAULT_STREAMS)
     run_parser.add_argument("--udp-bandwidth", default=DEFAULT_UDP_BANDWIDTH)
     run_parser.add_argument("--udp-payload", type=int, default=DEFAULT_UDP_PAYLOAD)
+    run_parser.add_argument(
+        "--pacing-timer",
+        type=int,
+        default=DEFAULT_PACING_TIMER_US,
+        help="iperf3 UDP pacing timer in microseconds",
+    )
     run_parser.add_argument("--port", type=int, default=DEFAULT_IPERF_PORT)
     run_parser.add_argument("--output-dir", type=Path)
     run_parser.add_argument("--dry-run", action="store_true")
@@ -1027,6 +1071,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sweep_parser.add_argument("--duration", type=int, default=DEFAULT_DURATION)
     sweep_parser.add_argument("--omit", type=int, default=DEFAULT_OMIT)
+    sweep_parser.add_argument(
+        "--pacing-timer",
+        type=int,
+        default=DEFAULT_PACING_TIMER_US,
+        help="iperf3 UDP pacing timer in microseconds",
+    )
     sweep_parser.add_argument("--rtt-packets", type=int, default=DEFAULT_RTT_PACKETS)
     sweep_parser.add_argument(
         "--ping-interval",
@@ -1076,6 +1126,7 @@ def validate_args(args: argparse.Namespace) -> None:
     validate_positive(args.repeat, "repeat")
     validate_positive(args.streams, "streams")
     validate_positive(args.udp_payload, "udp payload")
+    validate_positive(args.pacing_timer, "pacing timer")
     if args.omit < 0:
         raise ValueError("omit must not be negative")
     if args.port < 1 or args.port > 65535:
