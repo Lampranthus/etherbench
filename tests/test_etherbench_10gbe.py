@@ -63,6 +63,89 @@ class IperfResultTests(unittest.TestCase):
         self.assertEqual(result["jitter_ms"], 0.032)
         self.assertEqual(result["packets"], 100000)
 
+    def test_parse_ping_result(self):
+        output = """
+10 packets transmitted, 9 received, 10% packet loss, time 12ms
+rtt min/avg/max/mdev = 0.071/0.084/0.102/0.009 ms
+"""
+
+        result = MODULE.parse_ping_result(output)
+
+        self.assertEqual(result["sent"], 10)
+        self.assertEqual(result["received"], 9)
+        self.assertEqual(result["lost"], 1)
+        self.assertEqual(result["lost_pct"], 10.0)
+        self.assertEqual(result["avg_ms"], 0.084)
+
+    def test_theoretical_10gbe_goodput(self):
+        self.assertAlmostEqual(
+            MODULE.theoretical_goodput_mbps(1440),
+            9561.752988,
+            places=6,
+        )
+
+    def test_summarize_and_plot_generate_four_graphs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output_dir = Path(directory)
+            for payload in (256, 1440):
+                for repeat in (1, 2):
+                    MODULE.append_run(
+                        output_dir / "rtt_runs.csv",
+                        {
+                            "timestamp": 1,
+                            "direction": "nic-to-corundum",
+                            "payload_size": payload,
+                            "repeat": repeat,
+                            "sent": 10,
+                            "received": 10,
+                            "lost": 0,
+                            "lost_pct": 0.0,
+                            "min_ms": 0.07,
+                            "avg_ms": 0.08 + repeat / 1000,
+                            "max_ms": 0.10,
+                            "stddev_ms": 0.01,
+                            "returncode": 0,
+                        },
+                    )
+                    MODULE.append_run(
+                        output_dir / "runs.csv",
+                        {
+                            "timestamp": 1,
+                            "direction": "nic-to-corundum",
+                            "protocol": "udp",
+                            "repeat": repeat,
+                            "source_interface": "nic0",
+                            "destination_interface": "corundum0",
+                            "duration_s": 1,
+                            "omit_s": 0,
+                            "streams": 1,
+                            "udp_bandwidth": "8G",
+                            "payload_size": payload,
+                            "throughput_bps": 7.5e9,
+                            "elapsed_s": 1.0,
+                            "lost_percent": 0.1,
+                            "jitter_ms": 0.02,
+                            "packets": 500000,
+                            "retransmits": 0,
+                            "cpu_host_percent": 50,
+                            "cpu_remote_percent": 40,
+                            "returncode": 0,
+                        },
+                    )
+
+            MODULE.summarize(output_dir)
+            MODULE.plot(output_dir)
+
+            self.assertTrue((output_dir / "rtt_summary.csv").exists())
+            self.assertTrue((output_dir / "udp_summary.csv").exists())
+            for name in (
+                "rtt_payload_sweep.svg",
+                "goodput_payload_sweep.svg",
+                "loss_payload_sweep.svg",
+                "pps_payload_sweep.svg",
+            ):
+                self.assertTrue((output_dir / name).exists(), name)
+
 
 class CommandTests(unittest.TestCase):
     def setUp(self):

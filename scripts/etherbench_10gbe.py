@@ -7,13 +7,21 @@ import argparse
 import csv
 import json
 import os
+import re
 import shutil
+import statistics
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from etherbench_sweep import SeriesStyle, draw_plot
 
 
 DEFAULT_CORUNDUM_NAMESPACE = "corundum0_ns"
@@ -29,6 +37,13 @@ DEFAULT_REPEAT = 3
 DEFAULT_STREAMS = 4
 DEFAULT_UDP_BANDWIDTH = "9G"
 DEFAULT_UDP_PAYLOAD = 1440
+DEFAULT_PAYLOAD_MIN = 256
+DEFAULT_PAYLOAD_MAX = 1440
+DEFAULT_PAYLOAD_STEP = 74
+DEFAULT_RTT_PACKETS = 1000
+DEFAULT_PING_INTERVAL = 0.001
+DEFAULT_LINK_MBPS = 10_000.0
+ETHERNET_OVERHEAD_BYTES = 66
 
 
 @dataclass(frozen=True)
@@ -60,6 +75,7 @@ def run_command(
         capture_output=capture_output,
         text=True,
         timeout=timeout,
+        env={**os.environ, "LC_ALL": "C"},
     )
 
 
@@ -343,6 +359,7 @@ def write_snapshot(
     phase: str,
     test: TestCase,
     repeat: int,
+    payload: int | None = None,
 ) -> None:
     snapshot_dir = directory / f"counters_{phase}"
     snapshot_dir.mkdir(exist_ok=True)
@@ -351,7 +368,10 @@ def write_snapshot(
     if endpoint.name != "nic":
         raise RuntimeError("run counters must be collected from the NIC source")
 
-    stem = f"{test.direction}_{test.protocol}_run{repeat}_{endpoint.name}"
+    payload_part = f"_payload{payload}" if payload is not None else ""
+    stem = (
+        f"{test.direction}_{test.protocol}{payload_part}_run{repeat}_{endpoint.name}"
+    )
     link = read_link(endpoint)
     (snapshot_dir / f"{stem}_link.json").write_text(
         json.dumps(link, indent=2) + "\n"
@@ -381,6 +401,7 @@ def parse_iperf_result(data: dict[str, Any], protocol: str) -> dict[str, float]:
         summary = end.get("sum", {})
         return {
             "throughput_bps": number(summary, "bits_per_second"),
+            "elapsed_s": number(summary, "seconds"),
             "lost_percent": number(summary, "lost_percent"),
             "jitter_ms": number(summary, "jitter_ms"),
             "packets": number(summary, "packets"),
@@ -393,6 +414,7 @@ def parse_iperf_result(data: dict[str, Any], protocol: str) -> dict[str, float]:
     sent = end.get("sum_sent", {})
     return {
         "throughput_bps": number(received, "bits_per_second"),
+        "elapsed_s": number(received, "seconds"),
         "lost_percent": 0.0,
         "jitter_ms": 0.0,
         "packets": 0.0,
@@ -413,7 +435,8 @@ def run_test_case(
     client_command = iperf_client_command(test, args, port)
     raw_dir = output_dir / "iperf_json"
     raw_dir.mkdir(exist_ok=True)
-    stem = f"{test.direction}_{test.protocol}_run{repeat}"
+    payload_part = f"_payload{args.udp_payload}" if test.protocol == "udp" else ""
+    stem = f"{test.direction}_{test.protocol}{payload_part}_run{repeat}"
 
     print(f"[{test.direction}] protocol={test.protocol} run={repeat}/{args.repeat}")
     print("  server: " + " ".join(server_command))
@@ -433,6 +456,7 @@ def run_test_case(
             "udp_bandwidth": args.udp_bandwidth if test.protocol == "udp" else "",
             "payload_size": args.udp_payload if test.protocol == "udp" else "",
             "throughput_bps": "",
+            "elapsed_s": "",
             "lost_percent": "",
             "jitter_ms": "",
             "packets": "",
@@ -442,12 +466,14 @@ def run_test_case(
             "returncode": 0,
         }
 
-    write_snapshot(output_dir, "before", test, repeat)
+    snapshot_payload = args.udp_payload if test.protocol == "udp" else None
+    write_snapshot(output_dir, "before", test, repeat, snapshot_payload)
     server = subprocess.Popen(
         server_command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        env={**os.environ, "LC_ALL": "C"},
     )
 
     try:
@@ -471,7 +497,7 @@ def run_test_case(
     (raw_dir / f"{stem}_client.stderr.txt").write_text(client.stderr)
     (raw_dir / f"{stem}_server.json").write_text(server_stdout)
     (raw_dir / f"{stem}_server.stderr.txt").write_text(server_stderr)
-    write_snapshot(output_dir, "after", test, repeat)
+    write_snapshot(output_dir, "after", test, repeat, snapshot_payload)
 
     if client.returncode != 0:
         raise RuntimeError(
@@ -511,6 +537,326 @@ def append_run(path: Path, row: dict[str, Any]) -> None:
         if write_header:
             writer.writeheader()
         writer.writerow(row)
+
+
+def theoretical_goodput_mbps(payload_size: int) -> float:
+    return (
+        DEFAULT_LINK_MBPS
+        * payload_size
+        / (payload_size + ETHERNET_OVERHEAD_BYTES)
+    )
+
+
+def theoretical_pps(payload_size: int) -> float:
+    return (DEFAULT_LINK_MBPS * 1_000_000.0) / (
+        (payload_size + ETHERNET_OVERHEAD_BYTES) * 8.0
+    )
+
+
+def parse_payloads(args: argparse.Namespace) -> list[int]:
+    if args.payloads:
+        payloads = [int(value.strip(), 0) for value in args.payloads.split(",")]
+    else:
+        payloads = list(
+            range(args.payload_min, args.payload_max + 1, args.payload_step)
+        )
+        if not payloads:
+            raise ValueError("payload range is empty; check min, max and step")
+        if payloads[-1] != args.payload_max:
+            payloads.append(args.payload_max)
+
+    payloads = sorted(set(payloads))
+    for payload in payloads:
+        if payload < DEFAULT_PAYLOAD_MIN or payload > DEFAULT_PAYLOAD_MAX:
+            raise ValueError(
+                f"payload {payload} is outside "
+                f"{DEFAULT_PAYLOAD_MIN}..{DEFAULT_PAYLOAD_MAX}"
+            )
+    return payloads
+
+
+def parse_ping_result(output: str) -> dict[str, float]:
+    packet_match = re.search(
+        r"(\d+) packets transmitted, (\d+) received,.*?([\d.]+)% packet loss",
+        output,
+    )
+    if packet_match is None:
+        raise RuntimeError("could not parse ping packet summary")
+
+    sent = int(packet_match.group(1))
+    received = int(packet_match.group(2))
+    lost_pct = float(packet_match.group(3))
+    result = {
+        "sent": float(sent),
+        "received": float(received),
+        "lost": float(max(sent - received, 0)),
+        "lost_pct": lost_pct,
+        "min_ms": 0.0,
+        "avg_ms": 0.0,
+        "max_ms": 0.0,
+        "stddev_ms": 0.0,
+    }
+
+    rtt_match = re.search(
+        r"=\s*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)\s*ms",
+        output,
+    )
+    if rtt_match is not None:
+        result.update(
+            {
+                "min_ms": float(rtt_match.group(1)),
+                "avg_ms": float(rtt_match.group(2)),
+                "max_ms": float(rtt_match.group(3)),
+                "stddev_ms": float(rtt_match.group(4)),
+            }
+        )
+    return result
+
+
+def run_rtt_test(
+    source: Endpoint,
+    destination: Endpoint,
+    args: argparse.Namespace,
+    output_dir: Path,
+    payload: int,
+    repeat: int,
+) -> dict[str, Any]:
+    command = namespace_command(
+        source.namespace,
+        [
+            "ping",
+            "-n",
+            "-q",
+            "-c",
+            str(args.rtt_packets),
+            "-i",
+            str(args.ping_interval),
+            "-W",
+            "1",
+            "-s",
+            str(payload),
+            destination.ip,
+        ],
+    )
+    print(f"[nic-to-corundum] protocol=rtt payload={payload} run={repeat}/{args.repeat}")
+    print("  command: " + " ".join(command))
+
+    base_row: dict[str, Any] = {
+        "timestamp": int(time.time()),
+        "direction": "nic-to-corundum",
+        "payload_size": payload,
+        "repeat": repeat,
+        "sent": args.rtt_packets,
+        "received": "",
+        "lost": "",
+        "lost_pct": "",
+        "min_ms": "",
+        "avg_ms": "",
+        "max_ms": "",
+        "stddev_ms": "",
+        "returncode": 0,
+    }
+    if args.dry_run:
+        return base_row
+
+    result = run_command(
+        command,
+        check=False,
+        timeout=max(args.rtt_packets * args.ping_interval + 10.0, 15.0),
+    )
+    raw_dir = output_dir / "ping_raw"
+    raw_dir.mkdir(exist_ok=True)
+    stem = f"nic-to-corundum_rtt_payload{payload}_run{repeat}"
+    (raw_dir / f"{stem}.txt").write_text(result.stdout)
+    (raw_dir / f"{stem}.stderr.txt").write_text(result.stderr)
+
+    metrics = parse_ping_result(result.stdout)
+    base_row.update(metrics)
+    base_row["returncode"] = result.returncode
+    if result.returncode not in (0, 1):
+        raise RuntimeError(
+            f"ping failed with exit code {result.returncode}: {result.stderr}"
+        )
+    return base_row
+
+
+def read_csv(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open(newline="") as file:
+        return list(csv.DictReader(file))
+
+
+def mean(values: list[float]) -> float:
+    return statistics.fmean(values) if values else 0.0
+
+
+def stdev(values: list[float]) -> float:
+    return statistics.stdev(values) if len(values) > 1 else 0.0
+
+
+def group_by_payload(rows: list[dict[str, str]]) -> dict[int, list[dict[str, str]]]:
+    grouped: dict[int, list[dict[str, str]]] = {}
+    for row in rows:
+        if not row.get("payload_size"):
+            continue
+        grouped.setdefault(int(row["payload_size"]), []).append(row)
+    return grouped
+
+
+def write_summary(path: Path, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    with path.open("w", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def summarize(output_dir: Path) -> None:
+    rtt_summary: list[dict[str, Any]] = []
+    for payload, rows in sorted(
+        group_by_payload(read_csv(output_dir / "rtt_runs.csv")).items()
+    ):
+        valid = [row for row in rows if row.get("avg_ms")]
+        rtt_values = [float(row["avg_ms"]) for row in valid]
+        loss_values = [float(row["lost_pct"]) for row in rows if row.get("lost_pct")]
+        rtt_summary.append(
+            {
+                "payload_size": payload,
+                "runs": len(rows),
+                "avg_ms_mean": f"{mean(rtt_values):.9f}",
+                "avg_ms_std": f"{stdev(rtt_values):.9f}",
+                "lost_pct_mean": f"{mean(loss_values):.9f}",
+                "lost_pct_std": f"{stdev(loss_values):.9f}",
+            }
+        )
+
+    udp_rows = [
+        row
+        for row in read_csv(output_dir / "runs.csv")
+        if row.get("protocol") == "udp" and row.get("throughput_bps")
+    ]
+    udp_summary: list[dict[str, Any]] = []
+    for payload, rows in sorted(group_by_payload(udp_rows).items()):
+        goodput = [float(row["throughput_bps"]) / 1_000_000.0 for row in rows]
+        loss = [float(row["lost_percent"]) for row in rows]
+        pps = [
+            float(row["packets"]) / float(row["elapsed_s"])
+            for row in rows
+            if float(row.get("elapsed_s") or 0.0) > 0.0
+        ]
+        udp_summary.append(
+            {
+                "payload_size": payload,
+                "runs": len(rows),
+                "goodput_mbps_mean": f"{mean(goodput):.9f}",
+                "goodput_mbps_std": f"{stdev(goodput):.9f}",
+                "pps_mean": f"{mean(pps):.9f}",
+                "pps_std": f"{stdev(pps):.9f}",
+                "lost_pct_mean": f"{mean(loss):.9f}",
+                "lost_pct_std": f"{stdev(loss):.9f}",
+                "theoretical_goodput_mbps": f"{theoretical_goodput_mbps(payload):.9f}",
+                "theoretical_pps": f"{theoretical_pps(payload):.9f}",
+            }
+        )
+
+    write_summary(output_dir / "rtt_summary.csv", rtt_summary)
+    write_summary(output_dir / "udp_summary.csv", udp_summary)
+
+
+def plot(output_dir: Path) -> None:
+    rtt_rows = read_csv(output_dir / "rtt_summary.csv")
+    udp_rows = read_csv(output_dir / "udp_summary.csv")
+
+    if rtt_rows:
+        draw_plot(
+            output_dir / "rtt_payload_sweep.svg",
+            "RTT NIC-Corundum vs. payload",
+            "Tamaño del payload (bytes)",
+            "RTT promedio (ms)",
+            None,
+            rtt_rows,
+            [SeriesStyle("avg_ms_mean", "NIC a Corundum", "#1f77b4", "left")],
+        )
+
+    if udp_rows:
+        measured = SeriesStyle(
+            "goodput_mbps_mean", "NIC a Corundum", "#2ca02c", "left"
+        )
+        theoretical = SeriesStyle(
+            "theoretical_goodput_mbps",
+            "Límite teórico 10GbE",
+            "#111111",
+            "left",
+            dashed=True,
+        )
+        draw_plot(
+            output_dir / "goodput_payload_sweep.svg",
+            "Goodput NIC a Corundum vs. payload",
+            "Tamaño del payload (bytes)",
+            "Goodput de payload (Mbps)",
+            None,
+            udp_rows,
+            [measured, theoretical],
+        )
+        draw_plot(
+            output_dir / "loss_payload_sweep.svg",
+            "Pérdidas NIC a Corundum vs. payload",
+            "Tamaño del payload (bytes)",
+            "Pérdida (%)",
+            None,
+            udp_rows,
+            [SeriesStyle("lost_pct_mean", "NIC a Corundum", "#d62728", "left")],
+        )
+        draw_plot(
+            output_dir / "pps_payload_sweep.svg",
+            "PPS NIC a Corundum vs. payload",
+            "Tamaño del payload (bytes)",
+            "Paquetes por segundo",
+            None,
+            udp_rows,
+            [
+                SeriesStyle("pps_mean", "NIC a Corundum", "#9467bd", "left"),
+                SeriesStyle(
+                    "theoretical_pps",
+                    "Límite teórico 10GbE",
+                    "#111111",
+                    "left",
+                    dashed=True,
+                ),
+            ],
+        )
+
+
+def run_sweep(args: argparse.Namespace) -> Path:
+    require_tools(["ip", "ethtool", "iperf3", "ping"])
+    environment = [] if args.dry_run else check_environment(args)
+    output_dir = make_output_dir(args.output_dir)
+    if environment:
+        write_environment(output_dir / "environment.csv", environment)
+
+    corundum, nic = configured_endpoints(args)
+    udp_test = TestCase("nic-to-corundum", "udp", nic, corundum)
+    payloads = parse_payloads(args)
+
+    for payload in payloads:
+        args.udp_payload = payload
+        args.udp_bandwidth = str(
+            round(theoretical_goodput_mbps(payload) * 1_000_000.0 * args.load_factor)
+        )
+        for repeat in range(1, args.repeat + 1):
+            rtt_row = run_rtt_test(
+                nic, corundum, args, output_dir, payload, repeat
+            )
+            append_run(output_dir / "rtt_runs.csv", rtt_row)
+            udp_row = run_test_case(udp_test, args, output_dir, repeat)
+            append_run(output_dir / "runs.csv", udp_row)
+
+    if not args.dry_run:
+        summarize(output_dir)
+        plot(output_dir)
+    return output_dir
 
 
 def run_suite(args: argparse.Namespace) -> Path:
@@ -575,6 +921,55 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--output-dir", type=Path)
     run_parser.add_argument("--dry-run", action="store_true")
 
+    sweep_parser = subparsers.add_parser(
+        "sweep",
+        help="sweep payloads for RTT and UDP NIC-to-Corundum measurements",
+    )
+    add_endpoint_arguments(sweep_parser)
+    sweep_parser.add_argument("--payload-min", type=int, default=DEFAULT_PAYLOAD_MIN)
+    sweep_parser.add_argument("--payload-max", type=int, default=DEFAULT_PAYLOAD_MAX)
+    sweep_parser.add_argument("--payload-step", type=int, default=DEFAULT_PAYLOAD_STEP)
+    sweep_parser.add_argument(
+        "--payloads",
+        help="comma-separated payload list; overrides min/max/step",
+    )
+    sweep_parser.add_argument("--repeat", type=int, default=DEFAULT_REPEAT)
+    sweep_parser.add_argument("--duration", type=int, default=DEFAULT_DURATION)
+    sweep_parser.add_argument("--omit", type=int, default=DEFAULT_OMIT)
+    sweep_parser.add_argument("--rtt-packets", type=int, default=DEFAULT_RTT_PACKETS)
+    sweep_parser.add_argument(
+        "--ping-interval",
+        type=float,
+        default=DEFAULT_PING_INTERVAL,
+    )
+    sweep_parser.add_argument(
+        "--load-factor",
+        type=float,
+        default=1.0,
+        help="fraction of theoretical 10GbE payload goodput offered by iperf3",
+    )
+    sweep_parser.add_argument("--port", type=int, default=DEFAULT_IPERF_PORT)
+    sweep_parser.add_argument("--output-dir", type=Path)
+    sweep_parser.add_argument("--dry-run", action="store_true")
+    sweep_parser.set_defaults(
+        streams=1,
+        protocols=["udp"],
+        udp_bandwidth="",
+        udp_payload=DEFAULT_UDP_PAYLOAD,
+    )
+
+    summary_parser = subparsers.add_parser(
+        "summarize",
+        help="rebuild RTT and UDP summaries from a 10GbE result directory",
+    )
+    summary_parser.add_argument("--output-dir", type=Path, required=True)
+
+    plot_parser = subparsers.add_parser(
+        "plot",
+        help="rebuild 10GbE SVG plots from summary CSV files",
+    )
+    plot_parser.add_argument("--output-dir", type=Path, required=True)
+
     return parser
 
 
@@ -584,7 +979,7 @@ def validate_positive(value: int, name: str) -> None:
 
 
 def validate_args(args: argparse.Namespace) -> None:
-    if args.command != "run":
+    if args.command not in {"run", "sweep"}:
         return
     validate_positive(args.duration, "duration")
     validate_positive(args.repeat, "repeat")
@@ -594,6 +989,14 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("omit must not be negative")
     if args.port < 1 or args.port > 65535:
         raise ValueError("port must be between 1 and 65535")
+    if args.command == "sweep":
+        validate_positive(args.payload_step, "payload step")
+        validate_positive(args.rtt_packets, "RTT packets")
+        if args.ping_interval <= 0.0:
+            raise ValueError("ping interval must be greater than zero")
+        if args.load_factor <= 0.0 or args.load_factor > 1.0:
+            raise ValueError("load factor must be greater than zero and at most 1")
+        parse_payloads(args)
 
 
 def main() -> int:
@@ -610,6 +1013,21 @@ def main() -> int:
         if args.command == "run":
             output_dir = run_suite(args)
             print(f"Results written to: {output_dir}")
+            return 0
+
+        if args.command == "sweep":
+            output_dir = run_sweep(args)
+            print(f"Sweep results written to: {output_dir}")
+            return 0
+
+        if args.command == "summarize":
+            summarize(args.output_dir.resolve())
+            print(f"Summaries written to: {args.output_dir.resolve()}")
+            return 0
+
+        if args.command == "plot":
+            plot(args.output_dir.resolve())
+            print(f"Plots written to: {args.output_dir.resolve()}")
             return 0
     except (
         json.JSONDecodeError,

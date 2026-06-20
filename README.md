@@ -988,6 +988,18 @@ sudo scripts/etherbench_10gbe.py check
 sudo scripts/etherbench_10gbe.py run --duration 5 --repeat 1
 ```
 
+Para generar RTT, goodput, PPS y pérdidas contra payload en el enlace 10GbE:
+
+```bash
+sudo scripts/etherbench_10gbe.py sweep \
+  --payloads 256,1440 \
+  --repeat 1 \
+  --duration 5 \
+  --rtt-packets 100 \
+  --load-factor 0.90 \
+  --output-dir results/10gbe_sweep_smoke
+```
+
 ## Estructura del proyecto
 
 ```text

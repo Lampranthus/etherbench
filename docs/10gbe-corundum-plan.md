@@ -261,6 +261,69 @@ scripts/etherbench_10gbe.py run --dry-run \
   --output-dir /tmp/etherbench_10gbe_dry_run
 ```
 
+### Sweep y gráficas 10GbE
+
+El subcomando `sweep` mide RTT y UDP desde `nic0` hacia Corundum para cada
+payload. Al finalizar genera automáticamente los resúmenes y las cuatro
+gráficas equivalentes a las pruebas 1GbE.
+
+Primero ejecutar una campaña corta:
+
+```bash
+sudo scripts/etherbench_10gbe.py sweep \
+  --payloads 256,1440 \
+  --repeat 1 \
+  --duration 5 \
+  --rtt-packets 100 \
+  --load-factor 0.90 \
+  --output-dir results/10gbe_sweep_smoke
+```
+
+Después ejecutar el barrido completo:
+
+```bash
+sudo scripts/etherbench_10gbe.py sweep \
+  --repeat 3 \
+  --duration 15 \
+  --rtt-packets 1000 \
+  --load-factor 1.0 \
+  --output-dir results/10gbe_sweep_full
+```
+
+Payloads por defecto:
+
+```text
+256, 330, 404, 478, 552, 626, 700, 774, 848,
+922, 996, 1070, 1144, 1218, 1292, 1366, 1440
+```
+
+`--load-factor` multiplica el límite teórico de goodput de payload para 10GbE.
+Por ejemplo, `0.90` ofrece el 90% del valor teórico y `1.0` intenta alcanzar el
+límite del enlace. El sweep completo usa UDP; TCP permanece disponible en
+`run` como prueba funcional independiente.
+
+Archivos principales:
+
+| Archivo | Contenido |
+|---|---|
+| `rtt_runs.csv` | Cada ejecución de ping por payload |
+| `runs.csv` | Cada ejecución UDP de iperf3 |
+| `rtt_summary.csv` | Media y desviación del RTT y pérdidas |
+| `udp_summary.csv` | Goodput, PPS y pérdidas agregadas |
+| `rtt_payload_sweep.svg` | RTT NIC-Corundum |
+| `goodput_payload_sweep.svg` | Goodput medido y límite teórico 10GbE |
+| `loss_payload_sweep.svg` | Pérdidas UDP |
+| `pps_payload_sweep.svg` | PPS medidos y teóricos |
+
+Los resultados se pueden reconstruir sin repetir la prueba:
+
+```bash
+scripts/etherbench_10gbe.py summarize \
+  --output-dir results/10gbe_sweep_full
+scripts/etherbench_10gbe.py plot \
+  --output-dir results/10gbe_sweep_full
+```
+
 Subcomandos actuales y planeados:
 
 | Subcomando | Responsabilidad |
@@ -268,8 +331,9 @@ Subcomandos actuales y planeados:
 | `check` | Validar herramientas, interfaces, drivers, MTU y enlace 10GbE |
 | `setup` | Planeado: crear namespaces y configurar IP/MTU |
 | `run` | Ejecutar TCP y UDP desde la NIC hacia Corundum |
-| `summarize` | Planeado: construir CSV con media y desviación por punto |
-| `plot` | Planeado: generar RTT, goodput, PPS, pérdidas, jitter y CPU |
+| `sweep` | Barrer payload y medir RTT, goodput, PPS y pérdidas UDP |
+| `summarize` | Construir CSV con media y desviación por punto |
+| `plot` | Generar RTT, goodput, PPS y pérdidas |
 | `teardown` | Planeado: eliminar namespaces de forma controlada |
 
 El backend inicial usa `iperf3 -J`. Python lee JSON de forma estructurada y no
