@@ -14,8 +14,9 @@ proceso -> kernel -> driver mqnic -> Corundum -> enlace 10GbE
 
 Corundum se comporta como una NIC PCIe administrada por Linux. Esta prueba no
 debe usar los comandos UDP de control de la FPGA 1GbE (`regstats`, `fpga-net`,
-`fpga-test`, etc.). La configuración y los contadores se obtendrán mediante las
-interfaces Linux, `ethtool` y, posteriormente, las herramientas de `mqnic`.
+`fpga-test`, etc.). Las métricas de cada prueba se obtienen con `iperf3`; las
+interfaces Linux, `ethtool` y las herramientas de `mqnic` quedan reservadas
+para configuración y diagnóstico fuera de la medición.
 
 ## Estrategia de Git
 
@@ -58,7 +59,7 @@ Herramientas previstas:
 | Herramienta | Uso |
 |---|---|
 | `ip` | Namespaces, direcciones, MTU y estado del enlace |
-| `ethtool` | Driver, velocidad, offloads y contadores por NIC |
+| `ethtool` | Diagnóstico previo de driver, velocidad y offloads |
 | `iperf3` | Línea base TCP y UDP con salida JSON |
 | `ping` | Conectividad y RTT inicial |
 | `taskset` | Afinidad de los procesos de prueba |
@@ -166,23 +167,17 @@ sudo ip netns exec nic_ns ping -M do -s 8972 -c 5 192.168.1.100
 Para IPv4 sin opciones, un MTU de 9000 permite un payload ICMP de 8972 bytes.
 En UDP, validar el tamaño que utiliza `iperf3` y evitar fragmentación.
 
-## Contadores antes y después
+## Fuente de las métricas
 
-Durante `run`, Etherbench captura únicamente los contadores de la NIC
-convencional. Corundum permanece como receptor de `iperf3`, sin consultar sus
-registros hardware durante la medición:
+`run` y `sweep` no leen contadores de `ip -s` ni registros de `ethtool -S`.
+Goodput, paquetes, jitter y pérdidas UDP se obtienen exclusivamente del JSON
+que genera el servidor `iperf3` en el extremo receptor. En TCP, las
+retransmisiones se toman del cliente emisor porque es quien las reporta.
 
-```bash
-sudo ip netns exec nic_ns ip -s link show dev nic0
-sudo ip netns exec nic_ns ethtool -S nic0
-```
-
-Métricas mínimas:
-
-- Bytes y paquetes TX/RX de ambos extremos.
-- Errores, drops, missed packets y overruns.
-- Goodput TCP/UDP.
-- PPS recibidos.
+El porcentaje UDP corresponde a `lost_percent` de `iperf3`: el receptor usa
+los números de secuencia para comparar datagramas esperados y recibidos. El
+CSV conserva también `lost_packets` para poder auditar el porcentaje. La
+prueba RTT sí usa `ping`, ya que `iperf3` no proporciona RTT por payload.
 - Pérdida y jitter UDP.
 - Retransmisiones TCP.
 - Utilización de CPU reportada por `iperf3`.
@@ -263,9 +258,9 @@ scripts/etherbench_10gbe.py run --dry-run \
 
 ### Sweep y gráficas 10GbE
 
-El subcomando `sweep` mide RTT y UDP desde `nic0` hacia Corundum para cada
-payload. Al finalizar genera automáticamente los resúmenes y las cuatro
-gráficas equivalentes a las pruebas 1GbE.
+El subcomando `sweep` mide RTT y UDP en los sentidos NIC a Corundum y Corundum
+a NIC para cada payload. Al finalizar genera automáticamente resúmenes por
+dirección y cuatro gráficas comparativas equivalentes a las pruebas 1GbE.
 
 Primero ejecutar una campaña corta:
 
@@ -299,8 +294,10 @@ Payloads por defecto:
 
 `--load-factor` multiplica el límite teórico de goodput de payload para 10GbE.
 Por ejemplo, `0.90` ofrece el 90% del valor teórico y `1.0` intenta alcanzar el
-límite del enlace. El sweep completo usa UDP; TCP permanece disponible en
-`run` como prueba funcional independiente.
+límite del enlace. Una pérdida cercana al 10% con `1.0` puede ser real si el
+emisor, receptor o pacing de `iperf3` no sostiene la tasa de paquetes. Conviene
+repetir con `0.80`, `0.90` y `0.95` para localizar el punto de saturación. El
+sweep completo usa UDP; TCP permanece disponible en `run`.
 
 Archivos principales:
 
@@ -310,10 +307,10 @@ Archivos principales:
 | `runs.csv` | Cada ejecución UDP de iperf3 |
 | `rtt_summary.csv` | Media y desviación del RTT y pérdidas |
 | `udp_summary.csv` | Goodput, PPS y pérdidas agregadas |
-| `rtt_payload_sweep.svg` | RTT NIC-Corundum |
-| `goodput_payload_sweep.svg` | Goodput medido y límite teórico 10GbE |
-| `loss_payload_sweep.svg` | Pérdidas UDP |
-| `pps_payload_sweep.svg` | PPS medidos y teóricos |
+| `rtt_payload_sweep.svg` | RTT en ambos sentidos |
+| `goodput_payload_sweep.svg` | Goodput de ambas direcciones y límite teórico |
+| `loss_payload_sweep.svg` | Pérdidas UDP reportadas por cada receptor |
+| `pps_payload_sweep.svg` | PPS recibidos en ambas direcciones y valor teórico |
 
 Los resultados se pueden reconstruir sin repetir la prueba:
 
@@ -330,33 +327,30 @@ Subcomandos actuales y planeados:
 |---|---|
 | `check` | Validar herramientas, interfaces, drivers, MTU y enlace 10GbE |
 | `setup` | Planeado: crear namespaces y configurar IP/MTU |
-| `run` | Ejecutar TCP y UDP desde la NIC hacia Corundum |
-| `sweep` | Barrer payload y medir RTT, goodput, PPS y pérdidas UDP |
+| `run` | Ejecutar TCP y UDP en ambos sentidos |
+| `sweep` | Barrer payload en ambos sentidos y medir RTT, goodput, PPS y pérdidas |
 | `summarize` | Construir CSV con media y desviación por punto |
 | `plot` | Generar RTT, goodput, PPS y pérdidas |
 | `teardown` | Planeado: eliminar namespaces de forma controlada |
 
-El backend inicial usa `iperf3 -J`. Python lee JSON de forma estructurada y no
-analiza texto destinado a humanos. Cada ejecución inicia un servidor `iperf3
--s -1`, que acepta una prueba y termina automáticamente.
+El backend usa `iperf3 -J`. Python lee estructuradamente el JSON del receptor y
+no analiza texto destinado a humanos. Cada ejecución inicia un servidor
+`iperf3 -s -1`, que acepta una prueba y termina automáticamente.
 
 Salida propuesta:
 
 ```text
 results/10gbe_YYYYMMDD_HHMMSS/
-├── environment.csv
 ├── runs.csv
-├── counters_before/
-├── counters_after/
+├── rtt_runs.csv
 ├── iperf_json/
-├── tcp_summary.csv
+├── ping_raw/
 ├── udp_summary.csv
 ├── rtt_summary.csv
-├── goodput_10gbe.svg
-├── loss_10gbe.svg
-├── pps_10gbe.svg
-├── jitter_10gbe.svg
-└── cpu_10gbe.svg
+├── rtt_payload_sweep.svg
+├── goodput_payload_sweep.svg
+├── loss_payload_sweep.svg
+└── pps_payload_sweep.svg
 ```
 
 ## Etapas de implementación

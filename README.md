@@ -980,8 +980,9 @@ topología, configuración con namespaces, línea base con `iperf3`, métricas y
 etapas de implementación están documentadas en
 [`docs/10gbe-corundum-plan.md`](docs/10gbe-corundum-plan.md).
 
-La primera implementación genera tráfico desde la NIC convencional hacia
-Corundum y registra solamente los contadores de la NIC:
+La implementación genera tráfico en los sentidos NIC a Corundum y Corundum a
+NIC. Las métricas de tráfico provienen del JSON de `iperf3` en el receptor; no
+se leen contadores de las interfaces durante `run` ni `sweep`:
 
 ```bash
 sudo scripts/etherbench_10gbe.py check
@@ -999,6 +1000,13 @@ sudo scripts/etherbench_10gbe.py sweep \
   --load-factor 0.90 \
   --output-dir results/10gbe_sweep_smoke
 ```
+
+Las cuatro gráficas reúnen ambas direcciones. La pérdida UDP se toma de
+`lost_percent` y `lost_packets` reportados por el servidor `iperf3` receptor.
+RTT se obtiene con `ping`, porque `iperf3` no expone esa métrica. Si aparecen
+pérdidas altas con `--load-factor 1.0`, repetir con `0.80`, `0.90` y `0.95`
+permite distinguir el punto de saturación del enlace o del procesamiento de
+paquetes.
 
 ## Estructura del proyecto
 

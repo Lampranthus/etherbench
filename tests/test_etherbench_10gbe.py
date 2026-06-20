@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
-from unittest import mock
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "etherbench_10gbe.py"
@@ -46,6 +45,7 @@ class IperfResultTests(unittest.TestCase):
                 "sum": {
                     "bits_per_second": 8.9e9,
                     "lost_percent": 0.125,
+                    "lost_packets": 125,
                     "jitter_ms": 0.032,
                     "packets": 100000,
                 },
@@ -60,6 +60,7 @@ class IperfResultTests(unittest.TestCase):
 
         self.assertEqual(result["throughput_bps"], 8.9e9)
         self.assertEqual(result["lost_percent"], 0.125)
+        self.assertEqual(result["lost_packets"], 125)
         self.assertEqual(result["jitter_ms"], 0.032)
         self.assertEqual(result["packets"], 100000)
 
@@ -87,57 +88,67 @@ rtt min/avg/max/mdev = 0.071/0.084/0.102/0.009 ms
     def test_summarize_and_plot_generate_four_graphs(self):
         with tempfile.TemporaryDirectory() as directory:
             output_dir = Path(directory)
-            for payload in (256, 1440):
-                for repeat in (1, 2):
-                    MODULE.append_run(
-                        output_dir / "rtt_runs.csv",
-                        {
-                            "timestamp": 1,
-                            "direction": "nic-to-corundum",
-                            "payload_size": payload,
-                            "repeat": repeat,
-                            "sent": 10,
-                            "received": 10,
-                            "lost": 0,
-                            "lost_pct": 0.0,
-                            "min_ms": 0.07,
-                            "avg_ms": 0.08 + repeat / 1000,
-                            "max_ms": 0.10,
-                            "stddev_ms": 0.01,
-                            "returncode": 0,
-                        },
-                    )
-                    MODULE.append_run(
-                        output_dir / "runs.csv",
-                        {
-                            "timestamp": 1,
-                            "direction": "nic-to-corundum",
-                            "protocol": "udp",
-                            "repeat": repeat,
-                            "source_interface": "nic0",
-                            "destination_interface": "corundum0",
-                            "duration_s": 1,
-                            "omit_s": 0,
-                            "streams": 1,
-                            "udp_bandwidth": "8G",
-                            "payload_size": payload,
-                            "throughput_bps": 7.5e9,
-                            "elapsed_s": 1.0,
-                            "lost_percent": 0.1,
-                            "jitter_ms": 0.02,
-                            "packets": 500000,
-                            "retransmits": 0,
-                            "cpu_host_percent": 50,
-                            "cpu_remote_percent": 40,
-                            "returncode": 0,
-                        },
-                    )
+            for direction in ("nic-to-corundum", "corundum-to-nic"):
+                for payload in (256, 1440):
+                    for repeat in (1, 2):
+                        source, destination = (
+                            ("nic0", "corundum0")
+                            if direction == "nic-to-corundum"
+                            else ("corundum0", "nic0")
+                        )
+                        MODULE.append_run(
+                            output_dir / "rtt_runs.csv",
+                            {
+                                "timestamp": 1,
+                                "direction": direction,
+                                "payload_size": payload,
+                                "repeat": repeat,
+                                "sent": 10,
+                                "received": 10,
+                                "lost": 0,
+                                "lost_pct": 0.0,
+                                "min_ms": 0.07,
+                                "avg_ms": 0.08 + repeat / 1000,
+                                "max_ms": 0.10,
+                                "stddev_ms": 0.01,
+                                "returncode": 0,
+                            },
+                        )
+                        MODULE.append_run(
+                            output_dir / "runs.csv",
+                            {
+                                "timestamp": 1,
+                                "direction": direction,
+                                "protocol": "udp",
+                                "repeat": repeat,
+                                "source_interface": source,
+                                "destination_interface": destination,
+                                "duration_s": 1,
+                                "omit_s": 0,
+                                "streams": 1,
+                                "udp_bandwidth": "8G",
+                                "payload_size": payload,
+                                "throughput_bps": 7.5e9,
+                                "elapsed_s": 1.0,
+                                "lost_percent": 0.1,
+                                "lost_packets": 500,
+                                "jitter_ms": 0.02,
+                                "packets": 500000,
+                                "retransmits": 0,
+                                "cpu_host_percent": 50,
+                                "cpu_remote_percent": 40,
+                                "returncode": 0,
+                            },
+                        )
 
             MODULE.summarize(output_dir)
             MODULE.plot(output_dir)
 
             self.assertTrue((output_dir / "rtt_summary.csv").exists())
             self.assertTrue((output_dir / "udp_summary.csv").exists())
+            summary = (output_dir / "udp_summary.csv").read_text()
+            self.assertIn("nic-to-corundum", summary)
+            self.assertIn("corundum-to-nic", summary)
             for name in (
                 "rtt_payload_sweep.svg",
                 "goodput_payload_sweep.svg",
@@ -161,7 +172,7 @@ class CommandTests(unittest.TestCase):
             udp_payload=1440,
         )
 
-    def test_test_cases_only_run_from_nic_to_corundum(self):
+    def test_test_cases_run_in_both_directions(self):
         args = Namespace(
             corundum_namespace="corundum0_ns",
             nic_namespace="nic_ns",
@@ -170,15 +181,19 @@ class CommandTests(unittest.TestCase):
             corundum_ip="192.168.1.100",
             nic_ip="192.168.1.110",
             protocols=["tcp", "udp"],
+            directions=["nic-to-corundum", "corundum-to-nic"],
         )
 
         tests = MODULE.test_cases(args)
 
-        self.assertEqual(len(tests), 2)
-        for test in tests:
-            self.assertEqual(test.direction, "nic-to-corundum")
-            self.assertEqual(test.source, self.nic)
-            self.assertEqual(test.destination, self.corundum)
+        self.assertEqual(len(tests), 4)
+        self.assertEqual(
+            {test.direction for test in tests},
+            {"nic-to-corundum", "corundum-to-nic"},
+        )
+        reverse = next(test for test in tests if test.direction == "corundum-to-nic")
+        self.assertEqual(reverse.source, self.corundum)
+        self.assertEqual(reverse.destination, self.nic)
 
     def test_nic_to_corundum_udp_command(self):
         test = MODULE.TestCase(
@@ -192,26 +207,15 @@ class CommandTests(unittest.TestCase):
         self.assertIn("-u", command)
         self.assertIn("1440", command)
 
-    def test_snapshots_only_collect_nic_counters(self):
+    def test_corundum_to_nic_udp_command(self):
         test = MODULE.TestCase(
-            "nic-to-corundum", "udp", self.nic, self.corundum
+            "corundum-to-nic", "udp", self.corundum, self.nic
         )
 
-        with tempfile.TemporaryDirectory() as directory:
-            with mock.patch.object(MODULE, "read_link", return_value={"mtu": 1500}) as read_link:
-                with mock.patch.object(
-                    MODULE,
-                    "read_ethtool_stats",
-                    return_value="NIC statistics\n",
-                ) as read_stats:
-                    MODULE.write_snapshot(Path(directory), "before", test, 1)
+        command = MODULE.iperf_client_command(test, self.args, 5201)
 
-            read_link.assert_called_once_with(self.nic)
-            read_stats.assert_called_once_with(self.nic)
-            files = [path.name for path in Path(directory).rglob("*") if path.is_file()]
-            self.assertEqual(len(files), 2)
-            self.assertTrue(all("_nic_" in name for name in files))
-            self.assertFalse(any("_corundum_" in name for name in files))
+        self.assertEqual(command[:4], ["ip", "netns", "exec", "corundum0_ns"])
+        self.assertIn("192.168.1.110", command)
 
 
 if __name__ == "__main__":
