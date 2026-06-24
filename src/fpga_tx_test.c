@@ -15,10 +15,12 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <poll.h>
 #include <fcntl.h>
 
 #define FPGA_TX_RX_BUFFER_SIZE 2048
 #define FPGA_TX_QUIET_TIME_MS 100
+#define FPGA_TX_CAPTURE_FILE_BUFFER_SIZE (4 * 1024 * 1024)
 #define ESTIMATED_ETHERNET_OVERHEAD_BYTES 66
 
 static uint64_t now_ns(void)
@@ -338,6 +340,216 @@ cleanup:
     if (rx_sock >= 0) {
         close(rx_sock);
     }
+
+    return ret;
+}
+
+int fpga_tx_capture_run(
+    const char *fpga_ip,
+    int fpga_ctrl_port,
+    int local_port,
+    int timeout_ms,
+    int packet_count,
+    int payload_size,
+    const char *mode,
+    const char *output_filename,
+    fpga_tx_capture_result_t *result
+)
+{
+    int rx_sock = -1;
+    FILE *output = NULL;
+    uint8_t *buffer = NULL;
+    char *file_buffer = NULL;
+    struct in_addr expected_addr;
+    struct pollfd poll_fd;
+    uint64_t trigger_ns;
+    uint64_t first_rx_ns = 0;
+    uint64_t last_rx_ns = 0;
+    uint64_t valid_packet_deadline_ns;
+    int ret = -1;
+
+    if (fpga_ip == NULL ||
+        mode == NULL ||
+        output_filename == NULL ||
+        result == NULL ||
+        packet_count <= 0 ||
+        payload_size <= 0 ||
+        timeout_ms <= 0) {
+        return -1;
+    }
+
+    if (inet_pton(AF_INET, fpga_ip, &expected_addr) != 1) {
+        fprintf(stderr, "Invalid FPGA IP: %s\n", fpga_ip);
+        return -1;
+    }
+
+    memset(result, 0, sizeof(*result));
+    result->requested_packets = packet_count;
+    result->payload_size = payload_size;
+    snprintf(result->mode, sizeof(result->mode), "%s", mode);
+
+    buffer = malloc((size_t)payload_size + 1U);
+    file_buffer = malloc(FPGA_TX_CAPTURE_FILE_BUFFER_SIZE);
+
+    if (buffer == NULL || file_buffer == NULL) {
+        fprintf(stderr, "Could not allocate FPGA TX capture buffers\n");
+        goto cleanup;
+    }
+
+    output = fopen(output_filename, "wb");
+
+    if (output == NULL) {
+        perror("fopen FPGA TX capture");
+        goto cleanup;
+    }
+
+    if (setvbuf(
+            output,
+            file_buffer,
+            _IOFBF,
+            FPGA_TX_CAPTURE_FILE_BUFFER_SIZE
+        ) != 0) {
+        perror("setvbuf FPGA TX capture");
+        goto cleanup;
+    }
+
+    rx_sock = make_rx_socket(local_port);
+
+    if (rx_sock < 0) {
+        goto cleanup;
+    }
+
+    poll_fd.fd = rx_sock;
+    poll_fd.events = POLLIN;
+    poll_fd.revents = 0;
+
+    printf("Sending FPGA trigger and capturing UDP payloads...\n");
+    trigger_ns = now_ns();
+
+    if (fpga_ctrl_send_trigger(fpga_ip, fpga_ctrl_port) != 0) {
+        fprintf(stderr, "Could not send trigger command\n");
+        goto cleanup;
+    }
+
+    valid_packet_deadline_ns =
+        trigger_ns + ((uint64_t)timeout_ms * 1000000ULL);
+
+    while (result->captured_packets < packet_count) {
+        struct sockaddr_in source_addr;
+        socklen_t source_len = sizeof(source_addr);
+        uint64_t current_ns;
+        uint64_t remaining_ns;
+        ssize_t n;
+        int poll_timeout_ms;
+        int poll_result;
+
+        current_ns = now_ns();
+
+        if (current_ns >= valid_packet_deadline_ns) {
+            fprintf(
+                stderr,
+                "Capture stopped after %d ms without receiving a valid packet\n",
+                timeout_ms
+            );
+            break;
+        }
+
+        remaining_ns = valid_packet_deadline_ns - current_ns;
+        poll_timeout_ms = (int)((remaining_ns + 999999ULL) / 1000000ULL);
+        poll_result = poll(&poll_fd, 1, poll_timeout_ms);
+
+        if (poll_result == 0) {
+            fprintf(
+                stderr,
+                "Capture stopped after %d ms without receiving a valid packet\n",
+                timeout_ms
+            );
+            break;
+        }
+
+        if (poll_result < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+
+            perror("poll FPGA TX capture");
+            goto cleanup;
+        }
+
+        n = recvfrom(
+            rx_sock,
+            buffer,
+            (size_t)payload_size + 1U,
+            0,
+            (struct sockaddr *)&source_addr,
+            &source_len
+        );
+
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                continue;
+            }
+
+            perror("recvfrom FPGA TX capture");
+            goto cleanup;
+        }
+
+        if (source_addr.sin_addr.s_addr != expected_addr.s_addr) {
+            result->ignored_packets++;
+            continue;
+        }
+
+        if (n != payload_size) {
+            result->invalid_size_packets++;
+            continue;
+        }
+
+        if (fwrite(buffer, 1, (size_t)n, output) != (size_t)n) {
+            perror("fwrite FPGA TX capture");
+            goto cleanup;
+        }
+
+        if (result->captured_packets == 0) {
+            first_rx_ns = now_ns();
+        }
+
+        last_rx_ns = now_ns();
+        valid_packet_deadline_ns =
+            last_rx_ns + ((uint64_t)timeout_ms * 1000000ULL);
+        result->captured_packets++;
+        result->captured_bytes += (uint64_t)n;
+    }
+
+    if (fflush(output) != 0) {
+        perror("fflush FPGA TX capture");
+        goto cleanup;
+    }
+
+    result->lost_packets = packet_count - result->captured_packets;
+
+    if (result->captured_packets > 0 && last_rx_ns >= first_rx_ns) {
+        result->elapsed_s =
+            (double)(last_rx_ns - first_rx_ns) / 1000000000.0;
+        result->trigger_to_last_s =
+            (double)(last_rx_ns - trigger_ns) / 1000000000.0;
+    }
+
+    ret = result->captured_packets == packet_count ? 0 : 2;
+
+cleanup:
+    if (rx_sock >= 0) {
+        close(rx_sock);
+    }
+
+    if (output != NULL && fclose(output) != 0) {
+        if (ret >= 0) {
+            perror("fclose FPGA TX capture");
+            ret = -1;
+        }
+    }
+
+    free(file_buffer);
+    free(buffer);
 
     return ret;
 }

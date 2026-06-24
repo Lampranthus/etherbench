@@ -275,8 +275,12 @@ int fpga_ctrl_set_content_mode(
         return fpga_ctrl_enable_constant(fpga_ip, fpga_port);
     }
 
+    if (strcmp(mode, "sequential") == 0) {
+        return 0;
+    }
+
     fprintf(stderr, "Unknown FPGA content mode: %s\n", mode);
-    fprintf(stderr, "Use: random, constant\n");
+    fprintf(stderr, "Use: random, constant, sequential\n");
 
     return -1;
 }

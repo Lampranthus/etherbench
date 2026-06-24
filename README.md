@@ -452,6 +452,113 @@ transmisión y recibe los paquetes en Linux. Reporta paquetes recibidos y
 perdidos, tiempo de recepción, tiempo desde trigger hasta el último paquete,
 goodput y tasa estimada en el medio.
 
+### Captura binaria del payload generado por la FPGA
+
+```bash
+./etherbench fpga-tx-capture \
+  <fpga_ip> <paquetes> <payload> <modo> <salida.bin> \
+  [puerto_control] [puerto_local]
+```
+
+Ejemplo:
+
+```bash
+./etherbench fpga-tx-capture \
+  192.168.1.12 4096 1440 random payload_random.bin 55555 9999
+```
+
+La prueba deshabilita loopback, configura paquetes por trigger, tamaño y modo
+del payload, verifica la configuración, abre el receptor UDP y finalmente envía
+el trigger. Solamente acepta datagramas provenientes de la IP configurada para
+la FPGA y con el tamaño de payload esperado.
+
+El archivo `.bin` contiene los payloads UDP concatenados en el orden de
+recepción, sin encabezados por paquete. Por tanto, el paquete `N` comienza en
+el offset `N * payload`. El proceso termina al capturar todos los paquetes
+esperados o después de 3000 ms sin recibir un paquete válido. Si faltan
+paquetes, conserva la captura parcial y devuelve código de salida `2`.
+
+Para visualizar la frecuencia de los 256 valores posibles de byte como un mapa
+de calor 16×16:
+
+```bash
+python3 scripts/histograma_bytes.py payload_random.bin
+```
+
+El eje horizontal representa los 4 bits menos significativos y el vertical los
+4 bits más significativos. Por ejemplo, la celda con `A` en el eje vertical y
+`F` en el horizontal corresponde al byte `0xAF`.
+
+Para guardar la gráfica, mostrar el conteo dentro de cada celda y no abrir una
+ventana:
+
+```bash
+python3 scripts/histograma_bytes.py payload_random.bin \
+  --output histograma_payload.png \
+  --annotate \
+  --no-show
+```
+
+La opción `--log` aplica una escala logarítmica a la paleta de colores, útil
+cuando algunos valores aparecen muchas más veces que otros.
+
+Si el payload contiene números de 16 bits, el mismo script puede generar una
+matriz 256×256. El eje horizontal representa el byte bajo y el vertical el byte
+alto. Ambos ejes se muestran en decimal, de 0 a 255:
+
+```bash
+python3 scripts/histograma_bytes.py payload_sequential.bin \
+  --word-size 16 \
+  --endian big \
+  --output histograma_16bits.png \
+  --no-show
+```
+
+`--endian big` interpreta cada pareja como `[byte alto, byte bajo]`, que es el
+orden habitual en red. Si la FPGA escribe primero el byte bajo, usa
+`--endian little`. El archivo se procesa por bloques, por lo que también admite
+capturas de varios gigabytes sin cargarlas completas en memoria.
+
+### Histograma teórico del LFSR de 8 bits
+
+El script `scripts/lfsr_8bits_teorico.py` genera una secuencia teórica con seed
+`0xAB` y feedback igual al XOR de los bits 7, 5, 4 y 3. El registro se desplaza
+a la izquierda y el feedback entra por el bit 0.
+
+Cada palabra de 16 bits se forma con dos salidas consecutivas del LFSR: la
+primera salida es el byte alto y la segunda es el byte bajo. El resultado se
+grafica en una matriz 256×256 igual a la utilizada para las capturas:
+
+```bash
+python3 scripts/lfsr_8bits_teorico.py
+```
+
+Esta configuración tiene un período LFSR de 255 estados: recorre todos los
+valores no nulos y después vuelve a `0xAB`. Para guardar la gráfica y los bytes
+generados:
+
+```bash
+python3 scripts/lfsr_8bits_teorico.py \
+  --words 255 \
+  --output histograma_lfsr_teorico.png \
+  --binary-output lfsr_teorico.bin \
+  --no-show
+```
+
+La opción `--words` permite generar más pares consecutivos para comparar la
+distribución teórica con una captura de mayor tamaño.
+
+La línea roja superpuesta corresponde a la función discreta de transición. Si
+`y` es el primer byte del par y `x` es el segundo:
+
+```text
+x = ((y << 1) & 0xFF) |
+    (bit7(y) XOR bit5(y) XOR bit4(y) XOR bit3(y))
+```
+
+En la gráfica, `y` ocupa el eje vertical y `x = LFSR(y)` el horizontal. La
+opción `--no-overlay-function` oculta esta línea.
+
 ## Referencia de comandos
 
 ### Estadísticas del host
@@ -476,6 +583,7 @@ goodput y tasa estimada en el medio.
 | `fpga-test <ip> flood [ctrl]` | Activa flood |
 | `fpga-test <ip> mtu <256..1440> [ctrl]` | Configura payload UDP |
 | `fpga-test <ip> pktn <cantidad> [ctrl]` | Configura paquetes por trigger |
+| `fpga-tx-capture <ip> <paquetes> <payload> <modo> <salida.bin> [ctrl] [rx]` | Configura, dispara y guarda los payloads UDP en binario |
 
 ### Acceso MDIO avanzado
 
@@ -663,6 +771,36 @@ Las leyendas de goodput, pérdidas y PPS se presentan como tabla. Cada interfaz
 aparece una sola vez y las columnas indican `Interfaz a FPGA` y
 `FPGA a interfaz`. La línea negra punteada del límite teórico aparece en ambas
 columnas cuando la métrica tiene referencia teórica.
+
+Para reunir goodput y PPS de todas las interfaces en dos figuras con doble eje
+vertical y sus límites teóricos:
+
+```bash
+python3 scripts/limites_teoricos.py
+```
+
+El script lee por defecto `results/device_comparison/comparison_inputs.csv` y
+abre una ventana interactiva de Matplotlib sin crear archivos. La figura tiene
+cuatro paneles: goodput/PPS en la fila superior y pérdidas en la inferior;
+interfaz hacia FPGA queda a la izquierda y FPGA hacia interfaz a la derecha.
+Cada color representa una interfaz; el marcador circular corresponde a
+goodput, el cuadrado a PPS y el triángulo a pérdidas. Para seleccionar otro
+índice de comparación:
+
+```bash
+python3 scripts/limites_teoricos.py \
+  --inputs-csv results/otra_comparacion/comparison_inputs.csv
+```
+
+La exportación es opcional:
+
+```bash
+python3 scripts/limites_teoricos.py \
+  --output results/device_comparison/goodput_pps.png \
+  --no-show
+```
+
+La exportación anterior conserva ambos paneles dentro de `goodput_pps.png`.
 
 Los sweeps pueden tener payloads faltantes o listas diferentes. Cada curva se
 dibuja con los puntos disponibles en su propio resumen.
