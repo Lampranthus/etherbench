@@ -261,14 +261,20 @@ def plot_sweep(
             norm=norm,
             extent=(-0.5, 255.5, -0.5, 255.5),
         )
-        completeness = (
-            100.0
-            * min(point.packets * point.payload, total_words * 2)
-            / expected_file_size(point)
+        captured_bytes = (total_words * 2) + trailing_bytes
+        received_packets = min(
+            point.packets,
+            captured_bytes // point.payload,
+        )
+        received_percentage = (
+            100.0 * received_packets / point.packets
+            if point.packets > 0
+            else 0.0
         )
         axis.set_title(
             f"Payload {point.payload} B\n"
-            f"{point.packets:,} paquetes · {completeness:.2f}%",
+            f"{received_packets:,}/{point.packets:,} paquetes · "
+            f"{received_percentage:.5f}%",
             fontsize=10,
             fontweight="bold",
         )

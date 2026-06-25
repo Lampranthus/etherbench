@@ -20,11 +20,11 @@ from pathlib import Path
 
 
 DEFAULT_PAYLOAD_MIN = 256
-DEFAULT_PAYLOAD_MAX = 1440
-DEFAULT_PAYLOAD_STEP = 74
-DEFAULT_REPEAT = 5
+DEFAULT_PAYLOAD_MAX = 1472
+DEFAULT_PAYLOAD_STEP = 64
+DEFAULT_REPEAT = 10
 DEFAULT_RTT_PACKETS = 1000
-DEFAULT_LOAD_PACKETS = 1_000_000
+DEFAULT_LOAD_PACKETS = 100_000
 DEFAULT_CTRL_PORT = 55555
 DEFAULT_DATA_PORT = 1234
 DEFAULT_LOCAL_PORT = 9999
@@ -71,7 +71,7 @@ def parse_payloads(args: argparse.Namespace) -> list[int]:
     values = sorted(set(values))
 
     for value in values:
-        if value < 256 or value > 1440:
+        if value < 256 or value > 1472:
             raise ValueError(f"payload {value} is outside 256..1440")
 
     return values

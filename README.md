@@ -570,6 +570,10 @@ máximo no nulo de cada panel; los valores ausentes quedan con el color de fondo
 Esto permite distinguir claramente diferencias pequeñas, como 100 frente a
 101 apariciones:
 
+El título de cada panel muestra los paquetes recibidos respecto a los
+solicitados y su porcentaje con cinco decimales. Esta métrica se usa tanto en
+el barrido TX como en el barrido loopback.
+
 ```bash
 make
 python3 scripts/fpga_tx_capture_sweep.py \
