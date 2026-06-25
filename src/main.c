@@ -22,7 +22,7 @@
 #include <time.h>
 
 #define ETHERBENCH_MIN_UDP_MTU 256
-#define ETHERBENCH_MAX_UDP_MTU 1440
+#define ETHERBENCH_MAX_UDP_MTU 1472
 
 static int parse_cli_port(const char *text, const char *name, int *value)
 {

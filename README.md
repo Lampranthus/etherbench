@@ -119,7 +119,7 @@ Ajusta estos valores a la configuración de tu laboratorio.
 | Timeout de control | `3000 ms` | `include/config.h` |
 | Retardo entre operaciones MDIO | `200000 us` | `include/config.h` |
 | Payload UDP mínimo | `256 bytes` | Validación del CLI |
-| Payload UDP máximo | `1440 bytes` | Validación del CLI |
+| Payload UDP máximo | `1472 bytes` | Validación del CLI |
 | Velocidad teórica de la FPGA | `1000 Mb/s` | Script de análisis |
 | Repeticiones por punto | `5` | Script de barrido |
 | Paquetes por prueba RTT | `1000` | Script de barrido |
@@ -559,6 +559,66 @@ x = ((y << 1) & 0xFF) |
 En la gráfica, `y` ocupa el eje vertical y `x = LFSR(y)` el horizontal. La
 opción `--no-overlay-function` oculta esta línea.
 
+### Barrido de capturas sequential
+
+El script `scripts/fpga_tx_capture_sweep.py` ejecuta 20 capturas en modo
+`sequential`, desde payload de 256 hasta 1472 bytes, usando la cantidad de
+paquetes definida para cada punto. Después genera una sola figura con una
+matriz de 4×5 histogramas independientes. Cada panel tiene su propia barra de
+color y escala de apariciones. La paleta se normaliza entre el conteo mínimo y
+máximo no nulo de cada panel; los valores ausentes quedan con el color de fondo.
+Esto permite distinguir claramente diferencias pequeñas, como 100 frente a
+101 apariciones:
+
+```bash
+make
+python3 scripts/fpga_tx_capture_sweep.py \
+  --fpga-ip 192.168.1.12 \
+  --ctrl-port 55555 \
+  --local-port 9999
+```
+
+Los `.bin` y `capture_runs.csv` se guardan en un directorio fechado bajo
+`results/`. Al terminar se abre una ventana interactiva con la figura. Puedes
+guardarla desde la barra de herramientas de Matplotlib o indicar una ruta:
+
+```bash
+python3 scripts/fpga_tx_capture_sweep.py \
+  --fpga-ip 192.168.1.12 \
+  --figure results/histogramas_sequential_16bits.png
+```
+
+Para reanudar un barrido sin repetir capturas completas:
+
+```bash
+python3 scripts/fpga_tx_capture_sweep.py \
+  --output-dir results/fpga_tx_capture_sweep_YYYYMMDD_HHMMSS \
+  --resume
+```
+
+En capturas con payload pequeño, la tasa de paquetes puede desbordar el buffer
+UDP predeterminado de Linux. Antes del barrido se recomienda:
+
+```bash
+sudo sysctl -w net.core.rmem_max=33554432
+sudo sysctl -w net.core.rmem_default=33554432
+```
+
+El receptor solicita 32 MiB, muestra el tamaño concedido por el kernel y recibe
+datagramas por lotes para reducir pérdidas a tasas altas de paquetes.
+
+Para regenerar solamente la figura a partir de las 20 capturas:
+
+```bash
+python3 scripts/fpga_tx_capture_sweep.py \
+  --output-dir results/fpga_tx_capture_sweep_YYYYMMDD_HHMMSS \
+  --plot-only
+```
+
+Usa `--endian little` si la FPGA coloca primero el byte bajo y `--log` para una
+escala de color logarítmica. `--no-show` evita abrir la ventana, por ejemplo
+cuando se usa junto con `--figure` en una ejecución automatizada.
+
 ## Referencia de comandos
 
 ### Estadísticas del host
@@ -581,7 +641,7 @@ opción `--no-overlay-function` oculta esta línea.
 | `fpga-test <ip> trigger [ctrl]` | Dispara la transmisión configurada |
 | `fpga-test <ip> random [ctrl]` | Activa contenido aleatorio |
 | `fpga-test <ip> flood [ctrl]` | Activa flood |
-| `fpga-test <ip> mtu <256..1440> [ctrl]` | Configura payload UDP |
+| `fpga-test <ip> mtu <256..1472> [ctrl]` | Configura payload UDP |
 | `fpga-test <ip> pktn <cantidad> [ctrl]` | Configura paquetes por trigger |
 | `fpga-tx-capture <ip> <paquetes> <payload> <modo> <salida.bin> [ctrl] [rx]` | Configura, dispara y guarda los payloads UDP en binario |
 

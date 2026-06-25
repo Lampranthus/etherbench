@@ -1,4 +1,4 @@
-#define _DEFAULT_SOURCE
+#define _GNU_SOURCE
 
 #include "fpga_tx_test.h"
 #include "fpga_ctrl.h"
@@ -20,6 +20,8 @@
 
 #define FPGA_TX_RX_BUFFER_SIZE 2048
 #define FPGA_TX_QUIET_TIME_MS 100
+#define FPGA_TX_CAPTURE_BATCH_SIZE 128
+#define FPGA_TX_REQUESTED_RCVBUF (32 * 1024 * 1024)
 #define FPGA_TX_CAPTURE_FILE_BUFFER_SIZE (4 * 1024 * 1024)
 #define ESTIMATED_ETHERNET_OVERHEAD_BYTES 66
 
@@ -38,7 +40,9 @@ static int make_rx_socket(int local_port)
     struct sockaddr_in addr;
     int flags;
     int reuse = 1;
-    int rcvbuf = 32 * 1024 * 1024;
+    int rcvbuf = FPGA_TX_REQUESTED_RCVBUF;
+    int actual_rcvbuf = 0;
+    socklen_t actual_rcvbuf_len = sizeof(actual_rcvbuf);
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -53,8 +57,48 @@ static int make_rx_socket(int local_port)
         return -1;
     }
 
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0) {
-        perror("setsockopt SO_RCVBUF");
+#ifdef SO_RCVBUFFORCE
+    if (setsockopt(
+            sock,
+            SOL_SOCKET,
+            SO_RCVBUFFORCE,
+            &rcvbuf,
+            sizeof(rcvbuf)
+        ) < 0)
+#endif
+    {
+        if (setsockopt(
+                sock,
+                SOL_SOCKET,
+                SO_RCVBUF,
+                &rcvbuf,
+                sizeof(rcvbuf)
+            ) < 0) {
+            perror("setsockopt SO_RCVBUF");
+        }
+    }
+
+    if (getsockopt(
+            sock,
+            SOL_SOCKET,
+            SO_RCVBUF,
+            &actual_rcvbuf,
+            &actual_rcvbuf_len
+        ) == 0) {
+        printf(
+            "UDP receive buffer reported by kernel: %d bytes\n",
+            actual_rcvbuf
+        );
+
+        if (actual_rcvbuf < FPGA_TX_REQUESTED_RCVBUF) {
+            fprintf(
+                stderr,
+                "Warning: UDP receive buffer is smaller than requested.\n"
+                "For high-PPS captures, run as root:\n"
+                "  sysctl -w net.core.rmem_max=33554432\n"
+                "  sysctl -w net.core.rmem_default=33554432\n"
+            );
+        }
     }
 
     memset(&addr, 0, sizeof(addr));
@@ -358,7 +402,10 @@ int fpga_tx_capture_run(
 {
     int rx_sock = -1;
     FILE *output = NULL;
-    uint8_t *buffer = NULL;
+    uint8_t *batch_buffer = NULL;
+    struct mmsghdr *messages = NULL;
+    struct iovec *iovecs = NULL;
+    struct sockaddr_in *source_addrs = NULL;
     char *file_buffer = NULL;
     struct in_addr expected_addr;
     struct pollfd poll_fd;
@@ -388,12 +435,41 @@ int fpga_tx_capture_run(
     result->payload_size = payload_size;
     snprintf(result->mode, sizeof(result->mode), "%s", mode);
 
-    buffer = malloc((size_t)payload_size + 1U);
+    size_t capture_stride = (size_t)payload_size + 1U;
+    batch_buffer = malloc(
+        FPGA_TX_CAPTURE_BATCH_SIZE * capture_stride
+    );
+    messages = calloc(
+        FPGA_TX_CAPTURE_BATCH_SIZE,
+        sizeof(*messages)
+    );
+    iovecs = calloc(
+        FPGA_TX_CAPTURE_BATCH_SIZE,
+        sizeof(*iovecs)
+    );
+    source_addrs = calloc(
+        FPGA_TX_CAPTURE_BATCH_SIZE,
+        sizeof(*source_addrs)
+    );
     file_buffer = malloc(FPGA_TX_CAPTURE_FILE_BUFFER_SIZE);
 
-    if (buffer == NULL || file_buffer == NULL) {
+    if (batch_buffer == NULL ||
+        messages == NULL ||
+        iovecs == NULL ||
+        source_addrs == NULL ||
+        file_buffer == NULL) {
         fprintf(stderr, "Could not allocate FPGA TX capture buffers\n");
         goto cleanup;
+    }
+
+    for (int index = 0; index < FPGA_TX_CAPTURE_BATCH_SIZE; index++) {
+        iovecs[index].iov_base =
+            batch_buffer + ((size_t)index * capture_stride);
+        iovecs[index].iov_len = capture_stride;
+        messages[index].msg_hdr.msg_iov = &iovecs[index];
+        messages[index].msg_hdr.msg_iovlen = 1;
+        messages[index].msg_hdr.msg_name = &source_addrs[index];
+        messages[index].msg_hdr.msg_namelen = sizeof(source_addrs[index]);
     }
 
     output = fopen(output_filename, "wb");
@@ -435,11 +511,11 @@ int fpga_tx_capture_run(
         trigger_ns + ((uint64_t)timeout_ms * 1000000ULL);
 
     while (result->captured_packets < packet_count) {
-        struct sockaddr_in source_addr;
-        socklen_t source_len = sizeof(source_addr);
         uint64_t current_ns;
         uint64_t remaining_ns;
-        ssize_t n;
+        int batch_limit;
+        int captured_before_batch;
+        int received_in_batch;
         int poll_timeout_ms;
         int poll_result;
 
@@ -476,48 +552,75 @@ int fpga_tx_capture_run(
             goto cleanup;
         }
 
-        n = recvfrom(
+        batch_limit = packet_count - result->captured_packets;
+        if (batch_limit > FPGA_TX_CAPTURE_BATCH_SIZE) {
+            batch_limit = FPGA_TX_CAPTURE_BATCH_SIZE;
+        }
+
+        for (int index = 0; index < batch_limit; index++) {
+            messages[index].msg_len = 0;
+            messages[index].msg_hdr.msg_flags = 0;
+            messages[index].msg_hdr.msg_namelen =
+                sizeof(source_addrs[index]);
+        }
+
+        received_in_batch = recvmmsg(
             rx_sock,
-            buffer,
-            (size_t)payload_size + 1U,
-            0,
-            (struct sockaddr *)&source_addr,
-            &source_len
+            messages,
+            (unsigned int)batch_limit,
+            MSG_DONTWAIT,
+            NULL
         );
 
-        if (n < 0) {
+        if (received_in_batch < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
                 continue;
             }
 
-            perror("recvfrom FPGA TX capture");
+            perror("recvmmsg FPGA TX capture");
             goto cleanup;
         }
 
-        if (source_addr.sin_addr.s_addr != expected_addr.s_addr) {
-            result->ignored_packets++;
-            continue;
+        captured_before_batch = result->captured_packets;
+
+        for (int index = 0; index < received_in_batch; index++) {
+            size_t received_size = messages[index].msg_len;
+            uint8_t *payload =
+                batch_buffer + ((size_t)index * capture_stride);
+
+            if (source_addrs[index].sin_addr.s_addr != expected_addr.s_addr) {
+                result->ignored_packets++;
+                continue;
+            }
+
+            if (received_size != (size_t)payload_size) {
+                result->invalid_size_packets++;
+                continue;
+            }
+
+            if (fwrite(
+                    payload,
+                    1,
+                    received_size,
+                    output
+                ) != received_size) {
+                perror("fwrite FPGA TX capture");
+                goto cleanup;
+            }
+
+            if (result->captured_packets == 0) {
+                first_rx_ns = now_ns();
+            }
+
+            result->captured_packets++;
+            result->captured_bytes += (uint64_t)received_size;
         }
 
-        if (n != payload_size) {
-            result->invalid_size_packets++;
-            continue;
+        if (result->captured_packets > captured_before_batch) {
+            last_rx_ns = now_ns();
+            valid_packet_deadline_ns =
+                last_rx_ns + ((uint64_t)timeout_ms * 1000000ULL);
         }
-
-        if (fwrite(buffer, 1, (size_t)n, output) != (size_t)n) {
-            perror("fwrite FPGA TX capture");
-            goto cleanup;
-        }
-
-        if (result->captured_packets == 0) {
-            first_rx_ns = now_ns();
-        }
-
-        last_rx_ns = now_ns();
-        valid_packet_deadline_ns =
-            last_rx_ns + ((uint64_t)timeout_ms * 1000000ULL);
-        result->captured_packets++;
-        result->captured_bytes += (uint64_t)n;
     }
 
     if (fflush(output) != 0) {
@@ -549,7 +652,10 @@ cleanup:
     }
 
     free(file_buffer);
-    free(buffer);
+    free(source_addrs);
+    free(iovecs);
+    free(messages);
+    free(batch_buffer);
 
     return ret;
 }
