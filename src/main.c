@@ -8,6 +8,7 @@
 #include "fpga_ctrl.h"
 #include "fpga_rtt.h"
 #include "fpga_loopback_load.h"
+#include "fpga_loopback_capture.h"
 #include "fpga_loopback_mode.h"
 #include "fpga_tx_test.h"
 #include "utils.h"
@@ -90,6 +91,7 @@ static void print_usage(const char *program_name)
     printf("  %s fpga-test <fpga_ip> <command> [value] [fpga_port]\n", program_name);
     printf("  %s fpga-rtt <fpga_ip> <packets> <payload_size> [loopback_port] [local_port] [fpga_ctrl_port]\n", program_name);
     printf("  %s fpga-loopback-test <iface> <fpga_ip> <packets> <payload_size> [data_port] [local_port] [ctrl_port]\n", program_name);
+    printf("  %s fpga-loopback-capture <iface> <fpga_ip> <packets> <payload_size> <output.bin> [data_port] [local_port] [ctrl_port]\n", program_name);
     printf("  %s fpga-tx-test <iface> <fpga_ip> <packets> <payload_size> <mode> [ctrl_port] [local_port]\n", program_name);
     printf("  %s fpga-tx-capture <fpga_ip> <packets> <payload_size> <mode> <output.bin> [ctrl_port] [local_port]\n", program_name);
     printf("  %s all <interface_name>\n", program_name);
@@ -108,6 +110,7 @@ static void print_usage(const char *program_name)
     printf("  %s fpga-rtt 192.168.1.12 1000 64\n", program_name);
     printf("  %s fpga-rtt 192.168.1.12 1000 64 1234 9999 55555\n", program_name);
     printf("  %s fpga-loopback-test enp5s0 192.168.1.12 100000 1440\n", program_name);
+    printf("  %s fpga-loopback-capture eth0 192.168.1.12 4096 1440 loopback.bin 1234 9999 55555\n", program_name);
     printf("  %s fpga-tx-capture 192.168.1.12 4096 1440 random payload.bin 55555 9999\n", program_name);
     printf("  %s all eth0\n", program_name);
 }
@@ -1209,6 +1212,110 @@ int main(int argc, char **argv)
         printf("Saved to: %s\n", ETHERBENCH_FPGA_RTT_LOG_FILE);
 
         return 0;
+    }
+
+    if (strcmp(argv[1], "fpga-loopback-capture") == 0) {
+        const char *iface_name;
+        const char *fpga_ip;
+        const char *output_filename;
+        int packet_count;
+        int payload_size;
+        int fpga_data_port = ETHERBENCH_DEFAULT_FPGA_LOOPBACK_PORT;
+        int local_port = ETHERBENCH_DEFAULT_RX_PORT;
+        int fpga_ctrl_port = ETHERBENCH_DEFAULT_FPGA_CTRL_PORT;
+        int timeout_ms = ETHERBENCH_DEFAULT_TIMEOUT_MS;
+        int capture_status;
+        fpga_loopback_capture_result_t result;
+
+        if (argc < 7) {
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        iface_name = argv[2];
+        fpga_ip = argv[3];
+        if (parse_cli_positive_int(argv[4], "packets", &packet_count) != 0 ||
+            parse_cli_udp_mtu(argv[5], &payload_size) != 0) {
+            return 1;
+        }
+        output_filename = argv[6];
+
+        if (argc >= 8 &&
+            parse_cli_port(argv[7], "data_port", &fpga_data_port) != 0) {
+            return 1;
+        }
+        if (argc >= 9 &&
+            parse_cli_port(argv[8], "local_port", &local_port) != 0) {
+            return 1;
+        }
+        if (argc >= 10 &&
+            parse_cli_port(argv[9], "ctrl_port", &fpga_ctrl_port) != 0) {
+            return 1;
+        }
+
+        printf("\n========================================\n");
+        printf(" FPGA LOOPBACK PAYLOAD CAPTURE\n");
+        printf("========================================\n");
+        printf("Interface:        %s\n", iface_name);
+        printf("FPGA IP:          %s\n", fpga_ip);
+        printf("Data port:        %d\n", fpga_data_port);
+        printf("Local RX port:    %d\n", local_port);
+        printf("Control port:     %d\n", fpga_ctrl_port);
+        printf("Packets:          %d\n", packet_count);
+        printf("Payload size:     %d bytes\n", payload_size);
+        printf("Output file:      %s\n", output_filename);
+
+        if (fpga_enable_loopback_if_needed(
+                fpga_ip,
+                fpga_ctrl_port,
+                local_port,
+                timeout_ms
+            ) != 0) {
+            return 1;
+        }
+
+        capture_status = fpga_loopback_capture_run(
+            iface_name,
+            fpga_ip,
+            fpga_data_port,
+            local_port,
+            timeout_ms,
+            packet_count,
+            payload_size,
+            output_filename,
+            &result
+        );
+
+        if (fpga_disable_loopback_if_needed(
+                fpga_ip,
+                fpga_ctrl_port,
+                local_port,
+                timeout_ms
+            ) != 0) {
+            fprintf(stderr, "Warning: could not disable FPGA loopback\n");
+        }
+
+        if (capture_status < 0) {
+            fprintf(stderr, "Error: FPGA loopback capture failed\n");
+            return 1;
+        }
+
+        printf("\n========================================\n");
+        printf(" FPGA LOOPBACK CAPTURE RESULT\n");
+        printf("========================================\n");
+        printf("Requested packets:      %d\n", result.requested_packets);
+        printf("Sent packets:           %d\n", result.sent_packets);
+        printf("Send errors:            %d\n", result.send_errors);
+        printf("Captured packets:       %d\n", result.captured_packets);
+        printf("Missing packets:        %d\n", result.missing_packets);
+        printf("Invalid-size packets:   %d\n", result.invalid_size_packets);
+        printf("Ignored source packets: %d\n", result.ignored_packets);
+        printf("Captured bytes:         %" PRIu64 "\n", result.captured_bytes);
+        printf("Elapsed:                %.9f s\n", result.elapsed_s);
+        printf("Saved to:               %s\n", output_filename);
+        printf("Sequence:               uint16 big-endian, continuous\n");
+
+        return capture_status == 0 ? 0 : 2;
     }
 
     if (strcmp(argv[1], "fpga-loopback-test") == 0) {

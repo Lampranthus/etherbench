@@ -607,6 +607,16 @@ sudo sysctl -w net.core.rmem_default=33554432
 El receptor solicita 32 MiB, muestra el tamaño concedido por el kernel y recibe
 datagramas por lotes para reducir pérdidas a tasas altas de paquetes.
 
+Para loopback también conviene ampliar la cola de envío:
+
+```bash
+sudo sysctl -w net.core.wmem_max=33554432
+sudo sysctl -w net.core.wmem_default=33554432
+```
+
+Si la cola se llena temporalmente, el capturador drena respuestas y reintenta
+el mismo paquete sin avanzar la secuencia.
+
 Para regenerar solamente la figura a partir de las 20 capturas:
 
 ```bash
@@ -618,6 +628,37 @@ python3 scripts/fpga_tx_capture_sweep.py \
 Usa `--endian little` si la FPGA coloca primero el byte bajo y `--log` para una
 escala de color logarítmica. `--no-show` evita abrir la ventana, por ejemplo
 cuando se usa junto con `--figure` en una ejecución automatizada.
+
+### Barrido de capturas loopback secuenciales
+
+El comando `fpga-loopback-capture` genera en Linux una secuencia continua de
+palabras `uint16` big-endian, la envía a la FPGA en modo loopback y guarda en
+`.bin` los payloads retornados:
+
+```bash
+./etherbench fpga-loopback-capture \
+  eth0 192.168.1.12 4096 1440 loopback.bin \
+  1234 9999 55555
+```
+
+El barrido completo usa los mismos 20 payloads y cantidades del barrido TX:
+
+```bash
+make
+python3 scripts/fpga_loopback_capture_sweep.py \
+  --iface eth0 \
+  --fpga-ip 192.168.1.12 \
+  --data-port 1234 \
+  --local-port 9999 \
+  --ctrl-port 55555
+```
+
+Al terminar abre una figura 4×5 con una barra de color independiente por panel.
+También admite `--resume`, `--plot-only`, `--figure`, `--no-show` y `--log`.
+
+Por defecto, una captura loopback con al menos `99.99%` de completitud se
+conserva y el barrido continúa; el porcentaje real aparece en el panel. Usa
+`--strict-capture` si cualquier paquete faltante debe detener la campaña.
 
 ## Referencia de comandos
 
@@ -644,6 +685,7 @@ cuando se usa junto con `--figure` en una ejecución automatizada.
 | `fpga-test <ip> mtu <256..1472> [ctrl]` | Configura payload UDP |
 | `fpga-test <ip> pktn <cantidad> [ctrl]` | Configura paquetes por trigger |
 | `fpga-tx-capture <ip> <paquetes> <payload> <modo> <salida.bin> [ctrl] [rx]` | Configura, dispara y guarda los payloads UDP en binario |
+| `fpga-loopback-capture <iface> <ip> <paquetes> <payload> <salida.bin> [data] [rx] [ctrl]` | Envía una secuencia `uint16`, captura el loopback y guarda los payloads retornados |
 
 ### Acceso MDIO avanzado
 

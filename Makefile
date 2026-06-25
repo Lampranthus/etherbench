@@ -15,6 +15,7 @@ SRC = 	src/main.c \
 		src/fpga_rtt.c \
 		src/fpga_loopback_mode.c \
 		src/fpga_loopback_load.c \
+		src/fpga_loopback_capture.c \
 		src/fpga_tx_test.c \
 		src/utils.c
 OUT = etherbench

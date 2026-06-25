@@ -223,6 +223,7 @@ def plot_sweep(
     endian: str,
     output_file: Path | None,
     show: bool,
+    direction_title: str = "FPGA TX",
 ) -> None:
     figure, axes = plt.subplots(
         4,
@@ -306,7 +307,7 @@ def plot_sweep(
             axis.set_ylabel("Byte alto", fontsize=8)
 
     figure.suptitle(
-        "Barrido de payload FPGA TX — datos secuenciales de 16 bits\n"
+        f"Barrido de payload {direction_title} — datos secuenciales de 16 bits\n"
         f"Palabras interpretadas en orden {endian}-endian",
         fontsize=17,
         fontweight="bold",
