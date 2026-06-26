@@ -35,26 +35,26 @@ class SweepPoint:
 
 
 SWEEP_POINTS = (
-    SweepPoint(256, 512256),
-    SweepPoint(320, 409805),
-    SweepPoint(384, 341504),
-    SweepPoint(448, 292718),
-    SweepPoint(512, 256128),
-    SweepPoint(576, 227670),
-    SweepPoint(640, 204903),
-    SweepPoint(704, 186275),
-    SweepPoint(768, 170752),
-    SweepPoint(832, 157618),
-    SweepPoint(896, 146359),
-    SweepPoint(960, 136602),
-    SweepPoint(1024, 128064),
-    SweepPoint(1088, 120531),
-    SweepPoint(1152, 113835),
-    SweepPoint(1216, 107844),
-    SweepPoint(1280, 102452),
-    SweepPoint(1344, 97573),
-    SweepPoint(1408, 93138),
-    SweepPoint(1472, 89088),
+    SweepPoint(256, 5376),
+    SweepPoint(320, 4301),
+    SweepPoint(384, 3584),
+    SweepPoint(448, 3072),
+    SweepPoint(512, 2688),
+    SweepPoint(576, 2390),
+    SweepPoint(640, 2151),
+    SweepPoint(704, 1955),
+    SweepPoint(768, 1792),
+    SweepPoint(832, 1655),
+    SweepPoint(896, 1536),
+    SweepPoint(960, 1434),
+    SweepPoint(1024, 1344),
+    SweepPoint(1088, 1265),
+    SweepPoint(1152, 1195),
+    SweepPoint(1216, 1132),
+    SweepPoint(1280, 1076),
+    SweepPoint(1344, 1024),
+    SweepPoint(1408, 978),
+    SweepPoint(1472, 935),
 )
 
 
@@ -272,9 +272,8 @@ def plot_sweep(
             else 0.0
         )
         axis.set_title(
-            f"Payload {point.payload} B\n"
-            f"{received_packets:,}/{point.packets:,} paquetes · "
-            f"{received_percentage:.5f}%",
+            f"Payload {point.payload}B\n"
+            f"{received_packets:,}/{point.packets:,} paquetes",
             fontsize=10,
             fontweight="bold",
         )
@@ -313,8 +312,7 @@ def plot_sweep(
             axis.set_ylabel("Byte alto", fontsize=8)
 
     figure.suptitle(
-        f"Barrido de payload {direction_title} — datos secuenciales de 16 bits\n"
-        f"Palabras interpretadas en orden {endian}-endian",
+        f"Barrido de payload {direction_title} — datos secuenciales de 16 bits\n",
         fontsize=17,
         fontweight="bold",
     )
