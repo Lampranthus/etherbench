@@ -47,6 +47,9 @@ SUSPICIOUS_PATTERNS = (
     "fail",
     "coll",
 )
+BENIGN_COUNTER_PATTERNS = (
+    "fdir_miss",
+)
 
 
 @dataclass(frozen=True)
@@ -253,7 +256,11 @@ def diff_snapshots(
             delta = end - start
             if delta == 0:
                 continue
-            suspicious = any(pattern in key.lower() for pattern in SUSPICIOUS_PATTERNS)
+            key_lower = key.lower()
+            suspicious = (
+                any(pattern in key_lower for pattern in SUSPICIOUS_PATTERNS)
+                and not any(pattern in key_lower for pattern in BENIGN_COUNTER_PATTERNS)
+            )
             rows.append(
                 {
                     "endpoint": endpoint,
