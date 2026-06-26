@@ -336,6 +336,13 @@ def number(data: dict[str, Any], key: str) -> float:
         return 0.0
 
 
+def short_text(value: str, limit: int = 700) -> str:
+    text = value.strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit] + " ...[truncated]"
+
+
 def run_iperf3(test: TestCase, args: argparse.Namespace, output_dir: Path) -> dict[str, Any]:
     server_command = iperf_server_command(test, args)
     client_command = iperf_client_command(test, args)
@@ -353,7 +360,7 @@ def run_iperf3(test: TestCase, args: argparse.Namespace, output_dir: Path) -> di
         env={**os.environ, "LC_ALL": "C"},
     )
     try:
-        time.sleep(0.5)
+        time.sleep(args.server_wait)
         client = safe_command(client_command, timeout=args.duration + args.omit + 20)
         server_stdout, server_stderr = server.communicate(timeout=10)
     except Exception:
@@ -374,13 +381,21 @@ def run_iperf3(test: TestCase, args: argparse.Namespace, output_dir: Path) -> di
     if not udp_receiver_summary(data):
         data = json.loads(client.stdout) if client.stdout.strip() else {}
     summary = udp_receiver_summary(data)
+    throughput_mbps = number(summary, "bits_per_second") / 1_000_000.0
+    status = "ok" if client.returncode == 0 and throughput_mbps > 0.0 else "failed_or_unparsed"
     return {
         "tool": "iperf3",
+        "status": status,
         "returncode": client.returncode,
-        "throughput_mbps": number(summary, "bits_per_second") / 1_000_000.0,
+        "server_returncode": server.returncode,
+        "throughput_mbps": throughput_mbps,
         "lost_percent": number(summary, "lost_percent"),
         "lost_packets": number(summary, "lost_packets"),
         "packets": number(summary, "packets"),
+        "client_stderr": short_text(client.stderr),
+        "server_stderr": short_text(server_stderr),
+        "client_stdout_hint": short_text(client.stdout),
+        "server_stdout_hint": short_text(server_stdout),
     }
 
 
@@ -443,7 +458,7 @@ def run_netperf(test: TestCase, args: argparse.Namespace, output_dir: Path) -> d
         env={**os.environ, "LC_ALL": "C"},
     )
     try:
-        time.sleep(0.5)
+        time.sleep(args.server_wait)
         client = safe_command(client_command, timeout=args.duration + 20)
     finally:
         server.terminate()
@@ -458,10 +473,17 @@ def run_netperf(test: TestCase, args: argparse.Namespace, output_dir: Path) -> d
     write_text(output_dir / "raw" / "traffic" / "netserver_stdout.txt", server_stdout)
     write_text(output_dir / "raw" / "traffic" / "netserver_stderr.txt", server_stderr)
 
+    throughput_mbps = parse_netperf_throughput(client.stdout)
     return {
         "tool": "netperf",
+        "status": "ok" if client.returncode == 0 and throughput_mbps > 0.0 else "failed_or_unparsed",
         "returncode": client.returncode,
-        "throughput_mbps": parse_netperf_throughput(client.stdout),
+        "server_returncode": server.returncode,
+        "throughput_mbps": throughput_mbps,
+        "client_stderr": short_text(client.stderr),
+        "server_stderr": short_text(server_stderr),
+        "client_stdout_hint": short_text(client.stdout),
+        "server_stdout_hint": short_text(server_stdout),
     }
 
 
@@ -475,14 +497,30 @@ def write_summary(output_dir: Path, args: argparse.Namespace, traffic: dict[str,
         "# 10GbE debug summary",
         f"direction: {args.direction}",
         f"tool: {traffic.get('tool')}",
+        f"traffic_status: {traffic.get('status', '')}",
+        f"client_returncode: {traffic.get('returncode', '')}",
+        f"server_returncode: {traffic.get('server_returncode', '')}",
         f"payload: {args.payload} bytes",
         f"duration: {args.duration} s",
         f"throughput_mbps: {traffic.get('throughput_mbps', '')}",
         f"lost_percent: {traffic.get('lost_percent', '')}",
         f"lost_packets: {traffic.get('lost_packets', '')}",
         "",
-        "Suspicious counter deltas by endpoint:",
     ]
+    if traffic.get("status") != "ok":
+        lines.extend(
+            [
+                "Traffic test warning:",
+                "- La prueba no reportó throughput válido; los contadores de datos no son concluyentes todavía.",
+                "- Revisa raw/traffic/*stderr.txt para ver por qué falló el cliente o servidor.",
+            ]
+        )
+        for field in ("client_stderr", "server_stderr", "client_stdout_hint", "server_stdout_hint"):
+            if traffic.get(field):
+                lines.append(f"- {field}: {traffic[field]}")
+        lines.append("")
+
+    lines.append("Suspicious counter deltas by endpoint:")
     if by_endpoint:
         for endpoint, delta in sorted(by_endpoint.items(), key=lambda item: item[1], reverse=True):
             lines.append(f"- {endpoint}: {delta}")
@@ -532,6 +570,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pacing-timer", type=int, default=100)
     parser.add_argument("--socket-buffer", help="iperf3 socket buffer, for example 64M")
     parser.add_argument("--netperf-buffer", help="netperf UDP buffer, for example 50M")
+    parser.add_argument(
+        "--server-wait",
+        type=float,
+        default=1.0,
+        help="seconds to wait after starting iperf3/netserver before launching the client",
+    )
     parser.add_argument("--iperf-port", type=int, default=DEFAULT_IPERF_PORT)
     parser.add_argument("--netperf-port", type=int, default=DEFAULT_NETPERF_PORT)
     parser.add_argument("--output-dir", type=Path)
