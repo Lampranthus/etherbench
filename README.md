@@ -1325,6 +1325,42 @@ python3 scripts/limites_teoricos_10gbe.py \
   --input-dir results/10gbe_netperf_buffer_50M
 ```
 
+### Diagnóstico de pérdidas asimétricas en 10GbE
+
+Para distinguir si las pérdidas aparecen del lado NIC o del lado Corundum, el
+script de diagnóstico toma contadores antes/después de una prueba corta y guarda
+los deltas de `ip -s link`, `ethtool -S` y `/proc/net/snmp` en ambos namespaces:
+
+```bash
+sudo scripts/debug_10gbe_path.py \
+  --direction nic-to-corundum \
+  --tool iperf3 \
+  --payload 512 \
+  --load-factor 0.80 \
+  --udp-streams 4 \
+  --socket-buffer 64M \
+  --duration 5 \
+  --output-dir results/debug_nic_to_corundum_payload512
+```
+
+Para comparar contra la dirección estable:
+
+```bash
+sudo scripts/debug_10gbe_path.py \
+  --direction corundum-to-nic \
+  --tool iperf3 \
+  --payload 512 \
+  --load-factor 0.80 \
+  --udp-streams 4 \
+  --socket-buffer 64M \
+  --duration 5 \
+  --output-dir results/debug_corundum_to_nic_payload512
+```
+
+Los archivos principales son `summary.txt`, `traffic_result.csv` y
+`counter_deltas.csv`. Si los contadores sospechosos suben en el receptor, el
+cuello suele estar en RX/rings/colas/IRQ/buffers de ese lado.
+
 ## Estructura del proyecto
 
 ```text
