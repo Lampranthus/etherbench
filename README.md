@@ -1255,6 +1255,24 @@ paquetes. El pacing UDP usa intervalos de `100` µs por defecto; se puede probar
 una granularidad más fina con `--pacing-timer 50` o `10`, a cambio de mayor uso
 de CPU.
 
+Para obtener una figura combinada estilo `limites_teoricos.py`, con goodput y
+PPS contra payload en la fila superior y pérdidas contra payload en la inferior:
+
+```bash
+python3 scripts/limites_teoricos_10gbe.py \
+  --input-dir results/10gbe_sweep_smoke
+```
+
+Si no se indica `--input-dir`, el script usa el `results/10gbe_*` más reciente
+que contenga `udp_summary.csv`. La exportación es opcional:
+
+```bash
+python3 scripts/limites_teoricos_10gbe.py \
+  --input-dir results/10gbe_sweep_smoke \
+  --output results/10gbe_sweep_smoke/limites_teoricos_10gbe.png \
+  --no-show
+```
+
 ## Estructura del proyecto
 
 ```text
