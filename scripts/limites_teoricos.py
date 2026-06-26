@@ -14,7 +14,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 
 
-DEFAULT_INPUTS = Path("results/device_comparison/comparison_inputs.csv")
+DEFAULT_INPUTS = Path("results/device_comparison_256_1472_64/comparison_inputs.csv")
 LINK_MBPS = 1000.0
 ETHERNET_OVERHEAD_BYTES = 66
 MIN_WIRE_BYTES = 84
@@ -187,7 +187,7 @@ def plot_direction(
         plt.FuncFormatter(lambda value, _: f"{value / 1_000_000:.2f} M")
     )
 
-    ticks = [64, *sorted(measured_payloads), 1500]
+    ticks = [64, *sorted(measured_payloads)]
     goodput_axis.set_xticks(sorted(set(ticks)))
     goodput_axis.tick_params(axis="x", rotation=45)
 
@@ -251,7 +251,7 @@ def plot_loss(
         alpha=0.65,
     )
     loss_axis.minorticks_on()
-    ticks = [64, *sorted(measured_payloads), 1500]
+    ticks = [64, *sorted(measured_payloads)]
     loss_axis.set_xticks(sorted(set(ticks)))
     loss_axis.tick_params(axis="x", rotation=45)
 

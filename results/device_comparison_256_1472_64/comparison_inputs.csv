@@ -1,0 +1,6 @@
+label,result_directory
+USB-C_to_Gigabit_Ethernet_Adapter,/home/luisfercrtez/Documents/etherbench/results/sweep_20260625_084416
+RJ45_Raspberry_Pi_5,/home/luisfercrtez/Documents/etherbench/results/sweep_20260625_144157
+RJ45_Server,/home/luisfercrtez/Documents/etherbench/results/sweep_20260625_145842
+SFP+_NetFPGA-SUME_Server,/home/luisfercrtez/Documents/etherbench/results/sweep_20260625_155357
+SFP+_NIC_Server,/home/luisfercrtez/Documents/etherbench/results/sweep_20260625_153421
