@@ -1255,6 +1255,21 @@ paquetes. El pacing UDP usa intervalos de `100` µs por defecto; se puede probar
 una granularidad más fina con `--pacing-timer 50` o `10`, a cambio de mayor uso
 de CPU.
 
+Cuando una dirección pierde mucho más que la otra, probar varios streams UDP
+ayuda a repartir el tráfico entre colas/cores. El ancho de banda calculado por
+`--load-factor` se mantiene como carga total y el script lo divide entre los
+streams:
+
+```bash
+sudo scripts/etherbench_10gbe.py sweep \
+  --load-factor 0.90 \
+  --udp-streams 4 \
+  --socket-buffer 64M \
+  --duration 10 \
+  --repeat 3 \
+  --output-dir results/10gbe_sweep_streams4
+```
+
 Para obtener una figura combinada estilo `limites_teoricos.py`, con goodput y
 PPS contra payload en la fila superior y pérdidas contra payload en la inferior:
 

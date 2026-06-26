@@ -35,10 +35,11 @@ DEFAULT_DURATION = 15
 DEFAULT_OMIT = 2
 DEFAULT_REPEAT = 3
 DEFAULT_STREAMS = 4
+DEFAULT_UDP_STREAMS = 1
 DEFAULT_UDP_BANDWIDTH = "9G"
 DEFAULT_UDP_PAYLOAD = 1440
 DEFAULT_PAYLOAD_MIN = 256
-DEFAULT_PAYLOAD_MAX = 1440
+DEFAULT_PAYLOAD_MAX = 1472
 DEFAULT_PAYLOAD_STEP = 74
 DEFAULT_RTT_PACKETS = 1000
 DEFAULT_PING_INTERVAL = 0.001
@@ -82,6 +83,25 @@ def run_command(
 
 def namespace_command(namespace: str, command: list[str]) -> list[str]:
     return ["ip", "netns", "exec", namespace, *command]
+
+
+def parse_bitrate(value: str) -> float:
+    text = value.strip()
+    if not text:
+        raise ValueError("bitrate must not be empty")
+
+    multiplier = 1.0
+    suffix = text[-1].lower()
+    if suffix in {"k", "m", "g"}:
+        text = text[:-1]
+        multiplier = {"k": 1e3, "m": 1e6, "g": 1e9}[suffix]
+    return float(text) * multiplier
+
+
+def udp_stream_bitrate(total_bitrate: str, udp_streams: int) -> str:
+    if udp_streams <= 1:
+        return total_bitrate
+    return str(round(parse_bitrate(total_bitrate) / udp_streams))
 
 
 def require_tools(tools: list[str]) -> None:
@@ -317,11 +337,15 @@ def test_cases(args: argparse.Namespace) -> list[TestCase]:
     ]
 
 
-def iperf_server_command(test: TestCase, port: int) -> list[str]:
-    return namespace_command(
-        test.destination.namespace,
-        ["iperf3", "-s", "-1", "-p", str(port), "-J"],
-    )
+def iperf_server_command(
+    test: TestCase,
+    args: argparse.Namespace,
+    port: int,
+) -> list[str]:
+    command = ["iperf3", "-s", "-1", "-p", str(port), "-J"]
+    if args.socket_buffer:
+        command.extend(["-w", args.socket_buffer])
+    return namespace_command(test.destination.namespace, command)
 
 
 def iperf_client_command(
@@ -348,11 +372,14 @@ def iperf_client_command(
     if test.protocol == "tcp":
         command.extend(["-P", str(args.streams)])
     else:
+        if args.udp_streams > 1:
+            command.extend(["-P", str(args.udp_streams)])
+        bandwidth = udp_stream_bitrate(args.udp_bandwidth, args.udp_streams)
         command.extend(
             [
                 "-u",
                 "-b",
-                args.udp_bandwidth,
+                bandwidth,
                 "-l",
                 str(args.udp_payload),
                 "--pacing-timer",
@@ -435,7 +462,7 @@ def run_test_case(
     repeat: int,
 ) -> dict[str, Any]:
     port = args.port
-    server_command = iperf_server_command(test, port)
+    server_command = iperf_server_command(test, args, port)
     client_command = iperf_client_command(test, args, port)
     raw_dir = output_dir / "iperf_json"
     raw_dir.mkdir(exist_ok=True)
@@ -456,8 +483,9 @@ def run_test_case(
             "destination_interface": test.destination.interface,
             "duration_s": args.duration,
             "omit_s": args.omit,
-            "streams": args.streams if test.protocol == "tcp" else 1,
+            "streams": args.streams if test.protocol == "tcp" else args.udp_streams,
             "udp_bandwidth": args.udp_bandwidth if test.protocol == "udp" else "",
+            "socket_buffer": args.socket_buffer if args.socket_buffer else "",
             "pacing_timer_us": args.pacing_timer if test.protocol == "udp" else "",
             "payload_size": args.udp_payload if test.protocol == "udp" else "",
             "metrics_source": "",
@@ -545,8 +573,9 @@ def run_test_case(
         "destination_interface": test.destination.interface,
         "duration_s": args.duration,
         "omit_s": args.omit,
-        "streams": args.streams if test.protocol == "tcp" else 1,
+        "streams": args.streams if test.protocol == "tcp" else args.udp_streams,
         "udp_bandwidth": args.udp_bandwidth if test.protocol == "udp" else "",
+        "socket_buffer": args.socket_buffer if args.socket_buffer else "",
         "pacing_timer_us": args.pacing_timer if test.protocol == "udp" else "",
         "payload_size": args.udp_payload if test.protocol == "udp" else "",
         "metrics_source": metrics_source,
@@ -1038,8 +1067,18 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--omit", type=int, default=DEFAULT_OMIT)
     run_parser.add_argument("--repeat", type=int, default=DEFAULT_REPEAT)
     run_parser.add_argument("--streams", type=int, default=DEFAULT_STREAMS)
+    run_parser.add_argument(
+        "--udp-streams",
+        type=int,
+        default=DEFAULT_UDP_STREAMS,
+        help="parallel UDP streams; useful to spread traffic over several queues",
+    )
     run_parser.add_argument("--udp-bandwidth", default=DEFAULT_UDP_BANDWIDTH)
     run_parser.add_argument("--udp-payload", type=int, default=DEFAULT_UDP_PAYLOAD)
+    run_parser.add_argument(
+        "--socket-buffer",
+        help="iperf3 socket buffer/window, for example 16M or 64M",
+    )
     run_parser.add_argument(
         "--pacing-timer",
         type=int,
@@ -1071,6 +1110,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sweep_parser.add_argument("--duration", type=int, default=DEFAULT_DURATION)
     sweep_parser.add_argument("--omit", type=int, default=DEFAULT_OMIT)
+    sweep_parser.add_argument(
+        "--udp-streams",
+        type=int,
+        default=DEFAULT_UDP_STREAMS,
+        help="parallel UDP streams; useful to spread traffic over several queues",
+    )
+    sweep_parser.add_argument(
+        "--socket-buffer",
+        help="iperf3 socket buffer/window, for example 16M or 64M",
+    )
     sweep_parser.add_argument(
         "--pacing-timer",
         type=int,
@@ -1125,6 +1174,7 @@ def validate_args(args: argparse.Namespace) -> None:
     validate_positive(args.duration, "duration")
     validate_positive(args.repeat, "repeat")
     validate_positive(args.streams, "streams")
+    validate_positive(args.udp_streams, "UDP streams")
     validate_positive(args.udp_payload, "udp payload")
     validate_positive(args.pacing_timer, "pacing timer")
     if args.omit < 0:

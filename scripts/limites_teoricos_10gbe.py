@@ -26,6 +26,7 @@ DIRECTION_TITLES = {
     "nic-to-corundum": "NIC a Corundum",
     "corundum-to-nic": "Corundum a NIC",
 }
+NONINTERACTIVE_BACKENDS = {"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"}
 
 
 @dataclass(frozen=True)
@@ -121,6 +122,10 @@ def load_direction_data(input_dir: Path) -> list[DirectionData]:
 
 def decimal_mpps(value: float, _: int) -> str:
     return f"{value / 1_000_000:.2f} M"
+
+
+def matplotlib_backend_is_noninteractive() -> bool:
+    return plt.get_backend().lower() in NONINTERACTIVE_BACKENDS
 
 
 def payload_ticks(data: list[DirectionData]) -> list[int]:
@@ -362,6 +367,7 @@ def plot_10gbe_limits(
         print(f"Gráfica guardada en: {output.resolve()}")
 
     if show:
+        print(f"Abriendo ventana de Matplotlib con backend: {plt.get_backend()}")
         plt.show()
     plt.close(fig)
 
@@ -408,11 +414,25 @@ def main() -> int:
     args = build_parser().parse_args()
     try:
         input_dir = args.input_dir.resolve() if args.input_dir else latest_10gbe_result()
+        output = args.output
+        show = not args.no_show
+        if output is None and show and matplotlib_backend_is_noninteractive():
+            output = input_dir / "limites_teoricos_10gbe.png"
+            show = False
+            print(
+                "Matplotlib está usando un backend no interactivo "
+                f"({plt.get_backend()}); guardaré la figura en: {output}"
+            )
+
+        print(f"Leyendo resumen 10GbE desde: {input_dir / 'udp_summary.csv'}")
+        data = load_direction_data(input_dir)
+        directions = ", ".join(DIRECTION_TITLES.get(item.direction, item.direction) for item in data)
+        print(f"Direcciones encontradas: {directions}")
         plot_10gbe_limits(
-            load_direction_data(input_dir),
+            data,
             input_dir=input_dir,
-            output=args.output,
-            show=not args.no_show,
+            output=output,
+            show=show,
             link_mbps=args.link_mbps,
             title_label=args.title_label,
         )
