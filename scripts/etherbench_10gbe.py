@@ -31,16 +31,17 @@ DEFAULT_NIC_INTERFACE = "nic0"
 DEFAULT_CORUNDUM_IP = "192.168.1.100"
 DEFAULT_NIC_IP = "192.168.1.110"
 DEFAULT_IPERF_PORT = 5201
-DEFAULT_DURATION = 15
+DEFAULT_NETPERF_PORT = 12865
+DEFAULT_DURATION = 5
 DEFAULT_OMIT = 2
-DEFAULT_REPEAT = 3
-DEFAULT_STREAMS = 4
+DEFAULT_REPEAT = 1
+DEFAULT_STREAMS = 1
 DEFAULT_UDP_STREAMS = 1
-DEFAULT_UDP_BANDWIDTH = "9G"
+DEFAULT_UDP_BANDWIDTH = "10G"
 DEFAULT_UDP_PAYLOAD = 1440
 DEFAULT_PAYLOAD_MIN = 256
 DEFAULT_PAYLOAD_MAX = 1472
-DEFAULT_PAYLOAD_STEP = 74
+DEFAULT_PAYLOAD_STEP = 64
 DEFAULT_RTT_PACKETS = 1000
 DEFAULT_PING_INTERVAL = 0.001
 DEFAULT_PACING_TIMER_US = 100
@@ -317,6 +318,17 @@ def check_test_runtime(
             raise RuntimeError(f"network namespace not found: {endpoint.namespace}")
 
 
+def check_netperf_runtime(args: argparse.Namespace) -> None:
+    require_tools(["ip", "netperf", "netserver"])
+    require_root()
+    corundum, nic = configured_endpoints(args)
+    namespaces = existing_namespaces()
+
+    for endpoint in (corundum, nic):
+        if endpoint.namespace not in namespaces:
+            raise RuntimeError(f"network namespace not found: {endpoint.namespace}")
+
+
 def make_output_dir(output_dir: Path | None) -> Path:
     if output_dir is None:
         output_dir = Path("results") / time.strftime("10gbe_%Y%m%d_%H%M%S")
@@ -584,6 +596,182 @@ def run_test_case(
     }
 
 
+def netperf_server_command(test: TestCase, args: argparse.Namespace) -> list[str]:
+    return namespace_command(
+        test.destination.namespace,
+        ["netserver", "-D", "-p", str(args.netperf_port)],
+    )
+
+
+def netperf_client_command(
+    test: TestCase,
+    args: argparse.Namespace,
+    payload: int,
+) -> list[str]:
+    command = namespace_command(
+        test.source.namespace,
+        [
+            "netperf",
+            "-H",
+            test.destination.ip,
+            "-p",
+            str(args.netperf_port),
+            "-l",
+            str(args.duration),
+            "-t",
+            "UDP_STREAM",
+            "-f",
+            "m",
+            "-P",
+            "0",
+            "--",
+            "-m",
+            str(payload),
+        ],
+    )
+    if args.netperf_buffer:
+        command.extend(["-s", args.netperf_buffer, "-S", args.netperf_buffer])
+    return command
+
+
+def numeric_values(line: str) -> list[float]:
+    return [
+        float(match)
+        for match in re.findall(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", line)
+    ]
+
+
+def parse_netperf_udp_result(output: str, payload: int, duration: int) -> dict[str, float]:
+    numeric_rows = [
+        values
+        for values in (numeric_values(line) for line in output.splitlines())
+        if len(values) >= 3
+    ]
+    if not numeric_rows:
+        raise RuntimeError("could not parse netperf UDP output")
+
+    receive_row = numeric_rows[-1]
+    throughput_mbps = receive_row[-1]
+    elapsed_s = duration
+    if len(receive_row) >= 3 and 0.0 < receive_row[-3] <= duration * 2.0:
+        elapsed_s = receive_row[-3]
+
+    received_messages = 0.0
+    if len(receive_row) >= 2:
+        received_messages = receive_row[-2]
+
+    sent_messages = 0.0
+    lost_packets = 0.0
+    lost_percent = 0.0
+    if len(numeric_rows) >= 2:
+        send_row = numeric_rows[-2]
+        if len(send_row) >= 3:
+            sent_messages = send_row[-3]
+            if sent_messages >= received_messages > 0.0:
+                lost_packets = max(sent_messages - received_messages, 0.0)
+                lost_percent = lost_packets / sent_messages * 100.0
+
+    if received_messages > 0.0 and elapsed_s > 0.0:
+        packets = received_messages
+    elif elapsed_s > 0.0 and payload > 0:
+        packets = throughput_mbps * 1_000_000.0 * elapsed_s / (payload * 8.0)
+    else:
+        packets = 0.0
+
+    return {
+        "throughput_bps": throughput_mbps * 1_000_000.0,
+        "elapsed_s": elapsed_s,
+        "lost_percent": lost_percent,
+        "jitter_ms": 0.0,
+        "packets": packets,
+        "lost_packets": lost_packets,
+        "retransmits": 0.0,
+        "cpu_host_percent": 0.0,
+        "cpu_remote_percent": 0.0,
+    }
+
+
+def run_netperf_udp_test(
+    test: TestCase,
+    args: argparse.Namespace,
+    output_dir: Path,
+    payload: int,
+    repeat: int,
+) -> dict[str, Any]:
+    server_command = netperf_server_command(test, args)
+    client_command = netperf_client_command(test, args, payload)
+    raw_dir = output_dir / "netperf_raw"
+    raw_dir.mkdir(exist_ok=True)
+    stem = f"{test.direction}_udp_payload{payload}_run{repeat}"
+
+    print(f"[{test.direction}] tool=netperf protocol=udp payload={payload} run={repeat}/{args.repeat}")
+    print("  server: " + " ".join(server_command))
+    print("  client: " + " ".join(client_command))
+
+    base_row: dict[str, Any] = {
+        "timestamp": int(time.time()),
+        "tool": "netperf",
+        "direction": test.direction,
+        "protocol": "udp",
+        "repeat": repeat,
+        "source_interface": test.source.interface,
+        "destination_interface": test.destination.interface,
+        "duration_s": args.duration,
+        "payload_size": payload,
+        "netperf_buffer": args.netperf_buffer if args.netperf_buffer else "",
+        "metrics_source": "netperf_stdout",
+        "throughput_bps": "",
+        "elapsed_s": "",
+        "lost_percent": "",
+        "jitter_ms": "",
+        "packets": "",
+        "lost_packets": "",
+        "retransmits": "",
+        "cpu_host_percent": "",
+        "cpu_remote_percent": "",
+        "returncode": 0,
+    }
+    if args.dry_run:
+        return base_row
+
+    server = subprocess.Popen(
+        server_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env={**os.environ, "LC_ALL": "C"},
+    )
+
+    try:
+        time.sleep(0.4)
+        client = run_command(
+            client_command,
+            check=False,
+            timeout=args.duration + 15,
+        )
+    finally:
+        server.terminate()
+        try:
+            server_stdout, server_stderr = server.communicate(timeout=3)
+        except subprocess.TimeoutExpired:
+            server.kill()
+            server_stdout, server_stderr = server.communicate()
+
+    (raw_dir / f"{stem}.txt").write_text(client.stdout)
+    (raw_dir / f"{stem}.stderr.txt").write_text(client.stderr)
+    (raw_dir / f"{stem}_netserver.txt").write_text(server_stdout)
+    (raw_dir / f"{stem}_netserver.stderr.txt").write_text(server_stderr)
+
+    base_row["returncode"] = client.returncode
+    if client.returncode != 0:
+        raise RuntimeError(
+            f"netperf failed with exit code {client.returncode}: {client.stderr}"
+        )
+
+    base_row.update(parse_netperf_udp_result(client.stdout, payload, args.duration))
+    return base_row
+
+
 def append_run(path: Path, row: dict[str, Any]) -> None:
     write_header = not path.exists() or path.stat().st_size == 0
     with path.open("a", newline="") as file:
@@ -830,6 +1018,44 @@ def summarize(output_dir: Path) -> None:
     write_summary(output_dir / "udp_summary.csv", udp_summary)
 
 
+def summarize_netperf(output_dir: Path) -> None:
+    rows = [
+        row
+        for row in read_csv(output_dir / "netperf_runs.csv")
+        if row.get("protocol") == "udp" and row.get("throughput_bps")
+    ]
+    summary: list[dict[str, Any]] = []
+    for (direction, payload), items in sorted(group_by_direction_payload(rows).items()):
+        goodput = [float(row["throughput_bps"]) / 1_000_000.0 for row in items]
+        loss = [float(row.get("lost_percent") or 0.0) for row in items]
+        lost_packets = [float(row.get("lost_packets") or 0.0) for row in items]
+        pps = [
+            float(row["packets"]) / float(row["elapsed_s"])
+            for row in items
+            if float(row.get("elapsed_s") or 0.0) > 0.0
+        ]
+        summary.append(
+            {
+                "direction": direction,
+                "payload_size": payload,
+                "runs": len(items),
+                "goodput_mbps_mean": f"{mean(goodput):.9f}",
+                "goodput_mbps_std": f"{stdev(goodput):.9f}",
+                "pps_mean": f"{mean(pps):.9f}",
+                "pps_std": f"{stdev(pps):.9f}",
+                "lost_pct_mean": f"{mean(loss):.9f}",
+                "lost_pct_std": f"{stdev(loss):.9f}",
+                "lost_packets_mean": f"{mean(lost_packets):.9f}",
+                "lost_packets_std": f"{stdev(lost_packets):.9f}",
+                "theoretical_goodput_mbps": f"{theoretical_goodput_mbps(payload):.9f}",
+                "theoretical_pps": f"{theoretical_pps(payload):.9f}",
+            }
+        )
+
+    write_summary(output_dir / "netperf_udp_summary.csv", summary)
+    write_summary(output_dir / "udp_summary.csv", summary)
+
+
 def pivot_direction_rows(
     rows: list[dict[str, str]],
     metrics: list[str],
@@ -1010,6 +1236,27 @@ def run_sweep(args: argparse.Namespace) -> Path:
     return output_dir
 
 
+def run_netperf_sweep(args: argparse.Namespace) -> Path:
+    if not args.dry_run:
+        check_netperf_runtime(args)
+    output_dir = make_output_dir(args.output_dir)
+
+    tests = test_cases(args)
+    payloads = parse_payloads(args)
+    runs_path = output_dir / "netperf_runs.csv"
+
+    for payload in payloads:
+        for repeat in range(1, args.repeat + 1):
+            for test in tests:
+                row = run_netperf_udp_test(test, args, output_dir, payload, repeat)
+                append_run(runs_path, row)
+
+    if not args.dry_run:
+        summarize_netperf(output_dir)
+        plot(output_dir)
+    return output_dir
+
+
 def run_suite(args: argparse.Namespace) -> Path:
     if not args.dry_run:
         check_test_runtime(args)
@@ -1148,6 +1395,40 @@ def build_parser() -> argparse.ArgumentParser:
         udp_payload=DEFAULT_UDP_PAYLOAD,
     )
 
+    netperf_parser = subparsers.add_parser(
+        "netperf-sweep",
+        help="sweep UDP message sizes with netperf UDP_STREAM",
+    )
+    add_endpoint_arguments(netperf_parser)
+    netperf_parser.add_argument("--payload-min", type=int, default=DEFAULT_PAYLOAD_MIN)
+    netperf_parser.add_argument("--payload-max", type=int, default=DEFAULT_PAYLOAD_MAX)
+    netperf_parser.add_argument("--payload-step", type=int, default=DEFAULT_PAYLOAD_STEP)
+    netperf_parser.add_argument(
+        "--payloads",
+        help="comma-separated payload/message-size list; overrides min/max/step",
+    )
+    netperf_parser.add_argument("--repeat", type=int, default=DEFAULT_REPEAT)
+    netperf_parser.add_argument(
+        "--directions",
+        nargs="+",
+        choices=["nic-to-corundum", "corundum-to-nic"],
+        default=["nic-to-corundum", "corundum-to-nic"],
+    )
+    netperf_parser.add_argument("--duration", type=int, default=DEFAULT_DURATION)
+    netperf_parser.add_argument(
+        "--netperf-buffer",
+        help="socket buffer for netperf UDP_STREAM, for example 104K or 50M",
+    )
+    netperf_parser.add_argument(
+        "--netperf-port",
+        type=int,
+        default=DEFAULT_NETPERF_PORT,
+        help="netserver control port",
+    )
+    netperf_parser.add_argument("--output-dir", type=Path)
+    netperf_parser.add_argument("--dry-run", action="store_true")
+    netperf_parser.set_defaults(protocols=["udp"])
+
     summary_parser = subparsers.add_parser(
         "summarize",
         help="rebuild RTT and UDP summaries from a 10GbE result directory",
@@ -1169,6 +1450,15 @@ def validate_positive(value: int, name: str) -> None:
 
 
 def validate_args(args: argparse.Namespace) -> None:
+    if args.command == "netperf-sweep":
+        validate_positive(args.duration, "duration")
+        validate_positive(args.repeat, "repeat")
+        validate_positive(args.payload_step, "payload step")
+        if args.netperf_port < 1 or args.netperf_port > 65535:
+            raise ValueError("netperf port must be between 1 and 65535")
+        parse_payloads(args)
+        return
+
     if args.command not in {"run", "sweep"}:
         return
     validate_positive(args.duration, "duration")
@@ -1212,8 +1502,17 @@ def main() -> int:
             print(f"Sweep results written to: {output_dir}")
             return 0
 
+        if args.command == "netperf-sweep":
+            output_dir = run_netperf_sweep(args)
+            print(f"Netperf sweep results written to: {output_dir}")
+            return 0
+
         if args.command == "summarize":
-            summarize(args.output_dir.resolve())
+            output_dir = args.output_dir.resolve()
+            if (output_dir / "netperf_runs.csv").exists():
+                summarize_netperf(output_dir)
+            else:
+                summarize(output_dir)
             print(f"Summaries written to: {args.output_dir.resolve()}")
             return 0
 

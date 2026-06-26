@@ -1288,6 +1288,43 @@ python3 scripts/limites_teoricos_10gbe.py \
   --no-show
 ```
 
+También se puede repetir el barrido UDP con `netperf`, siguiendo la metodología
+del artículo pero variando el payload/message size en vez de variar sólo el
+buffer. El script levanta `netserver` en el namespace destino para cada punto y
+guarda `netperf_runs.csv`, `netperf_udp_summary.csv` y un `udp_summary.csv`
+compatible con las mismas gráficas:
+
+```bash
+sudo scripts/etherbench_10gbe.py netperf-sweep \
+  --payload-min 256 \
+  --payload-max 1472 \
+  --payload-step 64 \
+  --duration 5 \
+  --repeat 3 \
+  --netperf-buffer 50M \
+  --output-dir results/10gbe_netperf_buffer_50M
+```
+
+Para comparar contra un buffer pequeño como en el artículo:
+
+```bash
+sudo scripts/etherbench_10gbe.py netperf-sweep \
+  --payload-min 256 \
+  --payload-max 1472 \
+  --payload-step 64 \
+  --duration 5 \
+  --repeat 3 \
+  --netperf-buffer 104K \
+  --output-dir results/10gbe_netperf_buffer_104K
+```
+
+Después se puede usar la misma figura de límites:
+
+```bash
+python3 scripts/limites_teoricos_10gbe.py \
+  --input-dir results/10gbe_netperf_buffer_50M
+```
+
 ## Estructura del proyecto
 
 ```text
