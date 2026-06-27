@@ -1,0 +1,5 @@
+PING 192.168.1.100 (192.168.1.100) 960(988) bytes of data.
+
+--- 192.168.1.100 ping statistics ---
+1000 packets transmitted, 1000 received, 0% packet loss, time 1000ms
+rtt min/avg/max/mdev = 0.043/0.064/0.079/0.004 ms

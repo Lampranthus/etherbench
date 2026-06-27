@@ -1,0 +1,21 @@
+# 10GbE debug summary
+direction: corundum-to-nic
+tool: iperf3
+traffic_status: ok
+client_returncode: 0
+server_returncode: 0
+payload: 512 bytes
+duration: 5 s
+throughput_mbps: 7086.404531365028
+lost_percent: 0.0
+lost_packets: 0.0
+
+Suspicious counter deltas by endpoint:
+- nic: 12110709
+
+Top suspicious counters:
+- nic: ethtool_fdir_miss +12110709
+
+Hint: the largest suspicious delta is on 'nic'.
+If this endpoint is the receiver, focus on RX queues/rings/IRQ/NAPI/buffers there.
+If this endpoint is the sender, focus on TX queueing, pacing, or driver TX drops.
